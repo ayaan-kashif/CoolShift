@@ -1,0 +1,32 @@
+# Node dependencies
+node_modules/
+
+# Next.js build outputs
+frontend/.next/
+frontend/out/
+
+# Express build outputs
+backend/dist/
+
+# SQLite databases
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/*.db-wal
+
+# Storage folders
+backend/uploads/
+backend/outputs/
+
+# Local configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Operating System files
+.DS_Store
+Thumbs.db

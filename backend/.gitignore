@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# production/build
+dist/
+
+# databases
+data/*.db
+data/*.db-journal
+data/*.db-wal
+
+# uploads and outputs
+uploads/
+outputs/
+
+# environment variables
+.env
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# system files
+.DS_Store
