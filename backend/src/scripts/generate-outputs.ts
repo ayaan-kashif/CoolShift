@@ -51,28 +51,37 @@ async function generateOutputs() {
         peak: 0.05
       });
       
-      // Get output schedule rows
+      // Get output schedule rows (both baseline and optimized)
       const scheduleRows = db.prepare(
-        'SELECT * FROM output_schedule WHERE run_id = ? ORDER BY timestamp_local'
-      ).all(optimized.run_id) as any[];
+        'SELECT * FROM output_schedule WHERE run_id = ? OR run_id = ? ORDER BY is_baseline DESC, timestamp_local'
+      ).all(optimized.run_id, baseline.run_id) as any[];
       
       allIntervalRows.push(...scheduleRows);
       
-      // Get daily summary
+      // Get daily summary (comparing baseline vs optimized)
       const dailyRows = db.prepare(`
         SELECT 
           ? as scenario_id,
           ? as scenario_name,
-          SUBSTR(timestamp_local, 1, 10) as date,
-          SUM(interval_cost_pkr) as optimized_cost_pkr,
-          SUM(interval_emissions_kgco2e) as optimized_emissions_kgco2e,
-          SUM(grid_energy_kwh) as grid_energy_kwh,
-          SUM(solar_energy_used_kwh) as solar_energy_kwh,
-          MAX(grid_energy_kwh / 0.25) as peak_demand_kw,
-          SUM(CASE WHEN comfort_status = 'within_range' AND recommended_ac_units_on >= 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as comfort_pct
-        FROM output_schedule WHERE run_id = ?
-        GROUP BY SUBSTR(timestamp_local, 1, 10)
-      `).all(scenario.scenario_id, scenario.name, optimized.run_id) as any[];
+          SUBSTR(opt.timestamp_local, 1, 10) as date,
+          SUM(base.interval_cost_pkr) as baseline_cost_pkr,
+          SUM(opt.interval_cost_pkr) as optimized_cost_pkr,
+          SUM(base.interval_emissions_kgco2e) as baseline_emissions_kgco2e,
+          SUM(opt.interval_emissions_kgco2e) as optimized_emissions_kgco2e,
+          SUM(base.grid_energy_kwh) as baseline_grid_energy_kwh,
+          SUM(opt.grid_energy_kwh) as optimized_grid_energy_kwh,
+          SUM(base.solar_energy_used_kwh) as baseline_solar_energy_kwh,
+          SUM(opt.solar_energy_used_kwh) as optimized_solar_energy_kwh,
+          MAX(base.grid_energy_kwh / 0.25) as baseline_peak_demand_kw,
+          MAX(opt.grid_energy_kwh / 0.25) as optimized_peak_demand_kw,
+          SUM(CASE WHEN base.comfort_status = 'within_range' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as baseline_comfort_pct,
+          SUM(CASE WHEN opt.comfort_status = 'within_range' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as optimized_comfort_pct
+        FROM output_schedule opt
+        JOIN output_schedule base ON opt.timestamp_local = base.timestamp_local 
+          AND opt.scenario_id = base.scenario_id
+        WHERE opt.run_id = ? AND base.run_id = ?
+        GROUP BY SUBSTR(opt.timestamp_local, 1, 10)
+      `).all(scenario.scenario_id, scenario.name, optimized.run_id, baseline.run_id) as any[];
       
       allSummaryRows.push(...dailyRows);
       

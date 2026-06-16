@@ -154,7 +154,7 @@ function generateData() {
   function getTemperature(hour: number, dayOfMonth: number): number {
     // Base: 30-42°C with diurnal cycle
     const base = 33 + dayOfMonth * 0.1; // slight warming trend
-    const diurnal = -6 * Math.cos((hour - 14) * Math.PI / 12); // peak at 2pm
+    const diurnal = 6 * Math.cos((hour - 14) * Math.PI / 12); // peak at 2pm
     const noise = (random() - 0.5) * 3;
     return Math.round((base + diurnal + noise) * 10) / 10;
   }

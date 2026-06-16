@@ -96,182 +96,330 @@ export function runOptimization(
     run.evaluation_window_start, run.evaluation_window_end, run.status, run.created_at);
 
   // ---------------------------------------------------------------------
-  // 2. Build and Solve LP Model
+  // 2. Build and Solve LP Model Day-by-Day (Sequential)
   // ---------------------------------------------------------------------
-  const model: any = {
-    optimize: 'objective',
-    opType: 'min',
-    constraints: {},
-    variables: {},
-    ints: {},
-  };
-
-  const varName = (base: string, idx: number) => `${base}_${idx}`;
-
-  // Peak demand variable bound
-  model.constraints['peak_limit'] = { max: profile.maximum_grid_demand_kw };
-
-  // Battery capacity and reserves
   const socMin = energyAssets?.minimum_reserve_kwh || 0;
   const socMax = energyAssets?.battery_capacity_kwh || 0;
   const initialSoc = energyAssets?.initial_soc_kwh || 0;
   const batteryCap = energyAssets?.battery_capacity_kwh || 0;
 
-  let prevSocVar = 'soc_0';
-  model.variables[prevSocVar] = { objective: 0 };
-  model.constraints[prevSocVar] = { equal: initialSoc };
-
-  // Setup initial temperature tracking for the solver
   const initialTemp = estimateInitialIndoorTemp(intervals[0].temperature_c, profile.comfort_min_c, profile.comfort_max_c);
-  let prevTempVar = 'temp_0';
-  model.variables[prevTempVar] = { objective: 0 };
-  model.constraints[prevTempVar] = { equal: initialTemp };
 
-  intervals.forEach((intv, i) => {
-    const acUnitsVar = varName('acUnits', i);
-    const fanUnitsVar = varName('fanUnits', i);
-    const batChargeVar = varName('batCharge', i);
-    const batDischargeVar = varName('batDischarge', i);
-    const gridEnergyVar = varName('gridEnergy', i);
-    const socVar = varName('soc', i + 1);
-    const comfortDevVar = varName('comfortDev', i);
-    const peakDemandVar = varName('peakDemand', i);
-    const tempVar = varName('temp', i + 1);
-    const coolingPowerVar = varName('coolingPower', i);
-    const solarUsedVar = varName('solarUsed', i);
-
-    // Register variables
-    model.variables[acUnitsVar] = { objective: 0 };
-    model.variables[fanUnitsVar] = { objective: 0 };
-    model.variables[batChargeVar] = { objective: 0 };
-    model.variables[batDischargeVar] = { objective: 0 };
-    model.variables[gridEnergyVar] = { objective: 0 };
-    model.variables[socVar] = { objective: 0 };
-    model.variables[comfortDevVar] = { objective: weights.comfort * 15 }; // Scale comfort impact slightly higher to keep temp in range
-    model.variables[peakDemandVar] = { objective: weights.peak * 50 }; // Scale peak impact
-    model.variables[tempVar] = { objective: 0 };
-    model.variables[coolingPowerVar] = { objective: 0 };
-    model.variables[solarUsedVar] = { objective: 0 };
-
-    // Bounds and types
-    model.ints[acUnitsVar] = 1;
-    model.ints[fanUnitsVar] = 1;
-
-    model.constraints[acUnitsVar] = { min: 0, max: totalAcUnits };
-    model.constraints[fanUnitsVar] = { min: 0, max: totalFanUnits };
-    model.constraints[tempVar] = { min: 10, max: 60 };
-    model.constraints[coolingPowerVar] = { min: 0 };
-
-    const maxSolar = intv.solar_available_kw * 0.25;
-    model.constraints[solarUsedVar] = { min: 0, max: maxSolar };
-
-    if (batteryCap > 0) {
-      model.constraints[socVar] = { min: socMin, max: socMax };
-      const maxCharge = maxChargeable(energyAssets!, socMax, intv.interval_minutes);
-      const maxDischarge = maxDischargeable(energyAssets!, socMax, intv.interval_minutes, true);
-      model.constraints[batChargeVar] = { min: 0, max: maxCharge };
-      model.constraints[batDischargeVar] = { min: 0, max: maxDischarge };
-    } else {
-      model.constraints[socVar] = { equal: 0 };
-      model.constraints[batChargeVar] = { equal: 0 };
-      model.constraints[batDischargeVar] = { equal: 0 };
+  // Group intervals by date
+  const dateGroups: { [date: string]: { intv: IntervalInput; index: number }[] } = {};
+  intervals.forEach((intv, idx) => {
+    const date = intv.timestamp_local.substring(0, 10);
+    if (!dateGroups[date]) {
+      dateGroups[date] = [];
     }
-
-    // Grid Availability
-    if (!intv.grid_available) {
-      model.constraints[gridEnergyVar] = { equal: 0 };
-    } else {
-      model.constraints[gridEnergyVar] = { min: 0 };
-    }
-
-    // Energy Balance Constraint: grid + solar_used + discharge = ac_energy + fan_energy + non_cooling + charge
-    const energyBal = varName('energyBal', i);
-    model.constraints[energyBal] = { equal: intv.non_cooling_load_kw * 0.25 };
-    model.variables[gridEnergyVar][energyBal] = 1;
-    model.variables[solarUsedVar][energyBal] = 1;
-    model.variables[batDischargeVar][energyBal] = 1;
-    model.variables[batChargeVar][energyBal] = -1;
-    model.variables[acUnitsVar][energyBal] = -avgRatedPowerKw * 0.25;
-    model.variables[fanUnitsVar][energyBal] = -0.075 * 0.25;
-
-    // Grid Cost & Carbon Emissions added to Objective
-    model.variables[gridEnergyVar]['objective'] =
-      weights.cost * intv.tariff_pkr_per_kwh + weights.emissions * intv.grid_carbon_kgco2_per_kwh;
-
-    // Peak Demand constraint linking: grid_energy / 0.25 <= peakLimit
-    const peakLink = varName('peakLink', i);
-    model.constraints[peakLink] = { max: 0 };
-    model.variables[gridEnergyVar][peakLink] = 4; // gridEnergy / 0.25
-    model.variables[peakDemandVar][peakLink] = -1;
-    model.variables[peakDemandVar]['peak_limit'] = 1;
-
-    // Battery SOC evolution: soc_{i+1} = soc_i + charge * eta_c - discharge / eta_d
-    if (batteryCap > 0) {
-      const etaCharge = energyAssets?.charge_efficiency || 0.95;
-      const etaDischarge = energyAssets?.discharge_efficiency || 0.95;
-      const socEq = varName('socEq', i);
-      model.constraints[socEq] = { equal: 0 };
-      model.variables[socVar][socEq] = 1;
-      model.variables[prevSocVar][socEq] = -1;
-      model.variables[batChargeVar][socEq] = -etaCharge;
-      model.variables[batDischargeVar][socEq] = 1 / etaDischarge;
-    }
-
-    // Temperature evolution: tempVar_{i+1} = alpha * tempVar_i + gamma_i - beta * coolingPowerVar_i
-    const R = getThermalResistance(profile.insulation_level);
-    const C = getThermalCapacitance(profile.area_m2, profile.insulation_level);
-    const dt = intv.interval_minutes / 60; // 0.25
-
-    const alpha = 1 - dt / (C * R);
-    const beta = dt / C;
-
-    const T_eff = 0.7 * intv.temperature_c + 0.3 * intv.heat_index_c;
-    const Q_env_fixed = T_eff / R;
-    const Q_solar = getSolarHeatGain(intv.solar_irradiance_w_m2, profile.area_m2, profile.sun_exposure);
-    const Q_occ = getOccupantHeatGain(intv.occupancy_count);
-
-    const gamma_i = beta * (Q_env_fixed + Q_solar + Q_occ);
-
-    const tempEq = varName('tempEq', i);
-    if (i === 0) {
-      model.constraints[tempEq] = { equal: gamma_i + alpha * initialTemp };
-      model.variables[tempVar][tempEq] = 1;
-      model.variables[coolingPowerVar][tempEq] = beta;
-    } else {
-      model.constraints[tempEq] = { equal: gamma_i };
-      model.variables[tempVar][tempEq] = 1;
-      model.variables[prevTempVar][tempEq] = -alpha;
-      model.variables[coolingPowerVar][tempEq] = beta;
-    }
-
-    // Cooling Power Limit: coolingPowerVar <= acUnitsVar * avgCoolingCapacityKw
-    const coolingPowerLimit = varName('coolingPowerLimit', i);
-    model.constraints[coolingPowerLimit] = { max: 0 };
-    model.variables[coolingPowerVar][coolingPowerLimit] = 1;
-    model.variables[acUnitsVar][coolingPowerLimit] = -avgCoolingCapacityKw;
-
-    // Comfort Dev constraints using the tempVar
-    if (intv.occupancy_count > 0) {
-      const comfortMaxLink = varName('comfortMaxLink', i);
-      model.constraints[comfortMaxLink] = { max: profile.comfort_max_c };
-      model.variables[tempVar][comfortMaxLink] = 1;
-      model.variables[comfortDevVar][comfortMaxLink] = -1;
-
-      const comfortMinLink = varName('comfortMinLink', i);
-      model.constraints[comfortMinLink] = { min: profile.comfort_min_c };
-      model.variables[tempVar][comfortMinLink] = 1;
-      model.variables[comfortDevVar][comfortMinLink] = 1;
-    }
-
-    prevSocVar = socVar;
-    prevTempVar = tempVar;
+    dateGroups[date].push({ intv, index: idx });
   });
 
-  const solution = Solver.Solve(model) as any;
+  const dates = Object.keys(dateGroups).sort();
+
+  let currentInitialTemp = initialTemp;
+  let currentInitialSoc = initialSoc;
+  const globalSolution: any = { feasible: true, result: 0 };
+
+  const varName = (base: string, idx: number) => `${base}_${idx}`;
+
+  for (const date of dates) {
+    const dayIntervals = dateGroups[date];
+    const startIndex = dayIntervals[0].index;
+    const endIndex = dayIntervals[dayIntervals.length - 1].index;
+
+    const model: any = {
+      optimize: 'objective',
+      opType: 'min',
+      constraints: {},
+      variables: {},
+    };
+
+    // Initial values for this day
+    const dayPrevSocVar = `soc_${startIndex}`;
+    model.variables[dayPrevSocVar] = { objective: 0 };
+    const daySocInitLimit = `socInitLimit_${startIndex}`;
+    model.constraints[daySocInitLimit] = { equal: currentInitialSoc };
+    model.variables[dayPrevSocVar][daySocInitLimit] = 1;
+
+    const dayPrevTempVar = `temp_${startIndex}`;
+    model.variables[dayPrevTempVar] = { objective: 0 };
+    const dayTempInitLimit = `tempInitLimit_${startIndex}`;
+    model.constraints[dayTempInitLimit] = { equal: currentInitialTemp };
+    model.variables[dayPrevTempVar][dayTempInitLimit] = 1;
+
+    dayIntervals.forEach(({ intv, index: i }) => {
+      const acUnitsVar = varName('acUnits', i);
+      const fanUnitsVar = varName('fanUnits', i);
+      const batChargeVar = varName('batCharge', i);
+      const batDischargeVar = varName('batDischarge', i);
+      const gridEnergyVar = varName('gridEnergy', i);
+      const socVar = varName('soc', i + 1);
+      const comfortDevVar = varName('comfortDev', i);
+      const peakDemandVar = varName('peakDemand', i);
+      const tempVar = varName('temp', i + 1);
+      const coolingPowerVar = varName('coolingPower', i);
+      const solarUsedVar = varName('solarUsed', i);
+      const deficitVar = varName('deficit', i);
+
+      // Register variables
+      model.variables[acUnitsVar] = { objective: 0 };
+      model.variables[fanUnitsVar] = { objective: 0 };
+      model.variables[batChargeVar] = { objective: 0 };
+      model.variables[batDischargeVar] = { objective: 0 };
+      model.variables[gridEnergyVar] = { objective: 0 };
+      model.variables[socVar] = { objective: 0 };
+      model.variables[comfortDevVar] = { objective: weights.comfort * 5000 }; // high penalty for comfort deviation
+      model.variables[peakDemandVar] = { objective: weights.peak * 50 };
+      model.variables[tempVar] = { objective: 0 };
+      model.variables[coolingPowerVar] = { objective: 0 };
+      model.variables[solarUsedVar] = { objective: 0 };
+      model.variables[deficitVar] = { objective: 100000 }; // high penalty for unmet energy load
+
+      // Bounds constraints with proper variable mapping
+      const acLimit = `acLimit_${i}`;
+      model.constraints[acLimit] = { max: totalAcUnits };
+      model.variables[acUnitsVar][acLimit] = 1;
+
+      const fanLimit = `fanLimit_${i}`;
+      model.constraints[fanLimit] = { max: totalFanUnits };
+      model.variables[fanUnitsVar][fanLimit] = 1;
+
+      const tempLimit = `tempLimit_${i}`;
+      model.constraints[tempLimit] = { min: 10, max: 60 };
+      model.variables[tempVar][tempLimit] = 1;
+
+      const coolingPowerLimit = `coolingPowerLimit_${i}`;
+      model.constraints[coolingPowerLimit] = { max: 0 };
+      model.variables[coolingPowerVar][coolingPowerLimit] = 1;
+      model.variables[acUnitsVar][coolingPowerLimit] = -avgCoolingCapacityKw;
+
+      const maxSolar = intv.solar_available_kw * 0.25;
+      const solarLimit = `solarLimit_${i}`;
+      model.constraints[solarLimit] = { max: maxSolar };
+      model.variables[solarUsedVar][solarLimit] = 1;
+
+      const deficitLimit = `deficitLimit_${i}`;
+      model.constraints[deficitLimit] = { min: 0 };
+      model.variables[deficitVar][deficitLimit] = 1;
+
+      const socLimit = `socLimit_${i}`;
+      const batChargeLimit = `batChargeLimit_${i}`;
+      const batDischargeLimit = `batDischargeLimit_${i}`;
+
+      if (batteryCap > 0) {
+        model.constraints[socLimit] = { min: socMin, max: socMax };
+        model.variables[socVar][socLimit] = 1;
+
+        const maxCharge = maxChargeable(energyAssets!, socMax, intv.interval_minutes);
+        const maxDischarge = maxDischargeable(energyAssets!, socMax, intv.interval_minutes, true);
+
+        model.constraints[batChargeLimit] = { max: maxCharge };
+        model.variables[batChargeVar][batChargeLimit] = 1;
+
+        model.constraints[batDischargeLimit] = { max: maxDischarge };
+        model.variables[batDischargeVar][batDischargeLimit] = 1;
+      } else {
+        model.constraints[socLimit] = { equal: 0 };
+        model.variables[socVar][socLimit] = 1;
+
+        model.constraints[batChargeLimit] = { equal: 0 };
+        model.variables[batChargeVar][batChargeLimit] = 1;
+
+        model.constraints[batDischargeLimit] = { equal: 0 };
+        model.variables[batDischargeVar][batDischargeLimit] = 1;
+      }
+
+      // Grid Availability
+      const gridLimit = `gridLimit_${i}`;
+      if (!intv.grid_available) {
+        model.constraints[gridLimit] = { equal: 0 };
+        model.variables[gridEnergyVar][gridLimit] = 1;
+      } else {
+        model.constraints[gridLimit] = { min: 0 };
+        model.variables[gridEnergyVar][gridLimit] = 1;
+      }
+
+      // Energy Balance Constraint with deficit
+      const energyBal = `energyBal_${i}`;
+      model.constraints[energyBal] = { equal: intv.non_cooling_load_kw * 0.25 };
+      model.variables[gridEnergyVar][energyBal] = 1;
+      model.variables[solarUsedVar][energyBal] = 1;
+      model.variables[batDischargeVar][energyBal] = 1;
+      model.variables[deficitVar][energyBal] = 1;
+      model.variables[batChargeVar][energyBal] = -1;
+      model.variables[acUnitsVar][energyBal] = -avgRatedPowerKw * 0.25;
+      model.variables[fanUnitsVar][energyBal] = -0.075 * 0.25;
+
+      // Grid Cost & Carbon Emissions added to Objective
+      model.variables[gridEnergyVar]['objective'] =
+        weights.cost * intv.tariff_pkr_per_kwh + weights.emissions * intv.grid_carbon_kgco2_per_kwh;
+
+      // Peak Demand
+      const peakLimitConstraint = `peakLimitConstraint_${i}`;
+      model.constraints[peakLimitConstraint] = { max: profile.maximum_grid_demand_kw };
+
+      const peakLink = `peakLink_${i}`;
+      model.constraints[peakLink] = { max: 0 };
+      model.variables[gridEnergyVar][peakLink] = 4; // gridEnergy / 0.25
+      model.variables[peakDemandVar][peakLink] = -1;
+      model.variables[peakDemandVar][peakLimitConstraint] = 1;
+
+      // Battery SOC evolution: soc_{i+1} = soc_i + charge * eta_c - discharge / eta_d
+      if (batteryCap > 0) {
+        const etaCharge = energyAssets?.charge_efficiency || 0.95;
+        const etaDischarge = energyAssets?.discharge_efficiency || 0.95;
+        const socEq = `socEq_${i}`;
+        model.constraints[socEq] = { equal: 0 };
+        model.variables[socVar][socEq] = 1;
+        model.variables[`soc_${i}`][socEq] = -1;
+        model.variables[batChargeVar][socEq] = -etaCharge;
+        model.variables[batDischargeVar][socEq] = 1 / etaDischarge;
+      }
+
+      // Temperature evolution: tempVar_{i+1} = alpha * tempVar_i + gamma_i - beta * coolingPowerVar_i
+      const R = getThermalResistance(profile.insulation_level);
+      const C = getThermalCapacitance(profile.area_m2, profile.insulation_level);
+      const dt = intv.interval_minutes / 60; // 0.25
+
+      const alpha = 1 - dt / (C * R);
+      const beta = dt / C;
+
+      const T_eff = 0.7 * intv.temperature_c + 0.3 * intv.heat_index_c;
+      const Q_env_fixed = T_eff / R;
+      const Q_solar = getSolarHeatGain(intv.solar_irradiance_w_m2, profile.area_m2, profile.sun_exposure);
+      const Q_occ = getOccupantHeatGain(intv.occupancy_count);
+
+      const gamma_i = beta * (Q_env_fixed + Q_solar + Q_occ);
+
+      const tempEq = `tempEq_${i}`;
+      model.constraints[tempEq] = { equal: gamma_i };
+      model.variables[tempVar][tempEq] = 1;
+      model.variables[`temp_${i}`][tempEq] = -alpha;
+      model.variables[coolingPowerVar][tempEq] = beta;
+
+      // Comfort Dev constraints using the tempVar
+      if (intv.occupancy_count > 0) {
+        const comfortMaxLink = `comfortMaxLink_${i}`;
+        model.constraints[comfortMaxLink] = { max: profile.comfort_max_c };
+        model.variables[tempVar][comfortMaxLink] = 1;
+        model.variables[comfortDevVar][comfortMaxLink] = -1;
+
+        const comfortMinLink = `comfortMinLink_${i}`;
+        model.constraints[comfortMinLink] = { min: profile.comfort_min_c };
+        model.variables[tempVar][comfortMinLink] = 1;
+        model.variables[comfortDevVar][comfortMinLink] = 1;
+      }
+    });
+
+    const daySolution = Solver.Solve(model) as any;
+    if (!daySolution.feasible) {
+      globalSolution.feasible = false;
+    }
+
+    // Merge day solution
+    Object.keys(daySolution).forEach(key => {
+      if (key !== 'feasible' && key !== 'result' && key !== 'bounded') {
+        globalSolution[key] = daySolution[key];
+      }
+    });
+
+    globalSolution.result += daySolution.result || 0;
+
+    // Simulate day's actual outcomes step-by-step to compute ending state for the next day's LP
+    const thermalParams: ThermalParams = {
+      insulation_level: profile.insulation_level,
+      sun_exposure: profile.sun_exposure,
+      area_m2: profile.area_m2,
+    };
+
+    for (let i = startIndex; i <= endIndex; i++) {
+      const interval = intervals[i];
+      let acUnitsOn = Math.round(globalSolution[varName('acUnits', i)] || 0);
+      acUnitsOn = Math.max(0, Math.min(totalAcUnits, acUnitsOn));
+
+      let acSetpoint: number | null = null;
+      if (acUnitsOn > 0) {
+        const coolingPowerSolved = globalSolution[varName('coolingPower', i)] || 0;
+        const maxCooling = acUnitsOn * avgCoolingCapacityKw;
+        if (maxCooling > 0) {
+          const eff = Math.max(0, Math.min(1.0, coolingPowerSolved / maxCooling));
+          const calculatedSetpoint = currentInitialTemp - eff * 5.0;
+          acSetpoint = Math.round(
+            Math.max(
+              acAppliances[0].min_setpoint_c,
+              Math.min(acAppliances[0].max_setpoint_c, calculatedSetpoint)
+            )
+          );
+        } else {
+          acSetpoint = Math.round(
+            Math.max(
+              acAppliances[0].min_setpoint_c,
+              Math.min(acAppliances[0].max_setpoint_c, profile.comfort_max_c - 1)
+            )
+          );
+        }
+      }
+
+      const coolingPower = calculateCoolingPower(acUnitsOn, acSetpoint, currentInitialTemp, avgCoolingCapacityKw);
+
+      currentInitialTemp = stepThermalModel(thermalParams, { indoor_temp_c: currentInitialTemp }, {
+        outdoor_temp_c: interval.temperature_c,
+        heat_index_c: interval.heat_index_c,
+        solar_irradiance_w_m2: interval.solar_irradiance_w_m2,
+        occupancy_count: interval.occupancy_count,
+        cooling_power_kw: coolingPower,
+        interval_minutes: interval.interval_minutes,
+      });
+
+      // Update battery SoC
+      let batCharge = globalSolution[varName('batCharge', i)] || 0;
+      let batDischarge = globalSolution[varName('batDischarge', i)] || 0;
+
+      const acEnergy = calculateACEnergy(acUnitsOn, avgRatedPowerKw, interval.interval_minutes);
+      const fanEnergy = calculateFanEnergy(Math.round(globalSolution[varName('fanUnits', i)] || 0), interval.interval_minutes);
+      const coolingEnergy = acEnergy + fanEnergy;
+      const nonCoolingKwh = interval.non_cooling_load_kw * (interval.interval_minutes / 60);
+      const totalDemandKwh = coolingEnergy + nonCoolingKwh;
+
+      if (!interval.grid_available) {
+        const solarAvailableKwh = interval.solar_available_kw * (interval.interval_minutes / 60);
+        const solarUsedKwh = Math.min(solarAvailableKwh, totalDemandKwh);
+        const deficit = totalDemandKwh - solarUsedKwh;
+        if (deficit > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
+          const maxDisch = maxDischargeable(energyAssets, currentInitialSoc, interval.interval_minutes, true);
+          const dischargeKwh = Math.min(deficit, maxDisch);
+          const result = applyDischarge(energyAssets, currentInitialSoc, dischargeKwh, true);
+          currentInitialSoc = result.newSoc;
+        } else {
+          const excess = solarAvailableKwh - solarUsedKwh;
+          if (excess > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
+            const maxCh = maxChargeable(energyAssets, currentInitialSoc, interval.interval_minutes);
+            const chargeKwh = Math.min(excess, maxCh);
+            const result = applyCharge(energyAssets, currentInitialSoc, chargeKwh);
+            currentInitialSoc = result.newSoc;
+          }
+        }
+      } else {
+        if (batCharge > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
+          const maxCh = maxChargeable(energyAssets, currentInitialSoc, interval.interval_minutes);
+          const chargeKwh = Math.min(batCharge, maxCh);
+          const result = applyCharge(energyAssets, currentInitialSoc, chargeKwh);
+          currentInitialSoc = result.newSoc;
+        } else if (batDischarge > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
+          const maxDisch = maxDischargeable(energyAssets, currentInitialSoc, interval.interval_minutes, false);
+          const dischargeKwh = Math.min(batDischarge, maxDisch);
+          const result = applyDischarge(energyAssets, currentInitialSoc, dischargeKwh, false);
+          currentInitialSoc = result.newSoc;
+        }
+      }
+    }
+  }
 
   // ---------------------------------------------------------------------
-  // 3. Post-Process & Simulate Actual Outputs based on Solver Outputs
+  // 3. Post-Process & Simulate Actual Outputs based on Global Solution
   // ---------------------------------------------------------------------
+  const solution = globalSolution;
   const thermalParams: ThermalParams = {
     insulation_level: profile.insulation_level,
     sun_exposure: profile.sun_exposure,
@@ -310,17 +458,15 @@ export function runOptimization(
         currentDay = day;
       }
 
-      // Read solver decisions, rounding to integers for units
+      // Read solver decisions
       let acUnitsOn = Math.round(solution[varName('acUnits', i)] || 0);
       let fanUnitsOn = Math.round(solution[varName('fanUnits', i)] || 0);
       let batCharge = solution[varName('batCharge', i)] || 0;
       let batDischarge = solution[varName('batDischarge', i)] || 0;
 
-      // Handle simple boundaries
       acUnitsOn = Math.max(0, Math.min(totalAcUnits, acUnitsOn));
       fanUnitsOn = Math.max(0, Math.min(totalFanUnits, fanUnitsOn));
 
-      // Calculate setpoint target dynamically from solved cooling power
       let acSetpoint: number | null = null;
       if (acUnitsOn > 0) {
         const coolingPowerSolved = solution[varName('coolingPower', i)] || 0;
@@ -344,7 +490,6 @@ export function runOptimization(
         }
       }
 
-      // Thermal calculations
       const coolingPower = calculateCoolingPower(acUnitsOn, acSetpoint, indoorTemp, avgCoolingCapacityKw);
 
       indoorTemp = stepThermalModel(thermalParams, { indoor_temp_c: indoorTemp }, {
@@ -356,7 +501,6 @@ export function runOptimization(
         interval_minutes: interval.interval_minutes,
       });
 
-      // Energy balance calculations
       const acEnergy = calculateACEnergy(acUnitsOn, avgRatedPowerKw, interval.interval_minutes);
       const fanEnergy = calculateFanEnergy(fanUnitsOn, interval.interval_minutes);
       const coolingEnergy = acEnergy + fanEnergy;
@@ -371,7 +515,6 @@ export function runOptimization(
       let dischargeKwh = 0;
 
       if (!interval.grid_available) {
-        // Under grid outage, use solar first for demand, then charge battery with excess, or discharge battery
         solarUsedKwh = Math.min(solarAvailableKwh, totalDemandKwh);
         const deficit = totalDemandKwh - solarUsedKwh;
         if (deficit > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
@@ -381,7 +524,6 @@ export function runOptimization(
           dischargeKwh = result.actualDischarged;
           batterySoc = result.newSoc;
         } else {
-          // Charge battery with excess solar during outage
           const excess = solarAvailableKwh - solarUsedKwh;
           if (excess > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
             const maxCh = maxChargeable(energyAssets, batterySoc, interval.interval_minutes);
@@ -392,7 +534,6 @@ export function runOptimization(
           }
         }
       } else {
-        // Grid available: use charge/discharge solver directives
         if (batCharge > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
           const maxCh = maxChargeable(energyAssets, batterySoc, interval.interval_minutes);
           chargeKwh = Math.min(batCharge, maxCh);
@@ -411,7 +552,6 @@ export function runOptimization(
         gridEnergyKwh = Math.max(0, totalDemandKwh + chargeKwh - solarUsedKwh - dischargeKwh);
       }
 
-      // Track stats
       const gridPowerKw = gridEnergyKwh / (interval.interval_minutes / 60);
       peakDemandKw = Math.max(peakDemandKw, gridPowerKw);
 
