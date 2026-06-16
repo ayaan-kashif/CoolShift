@@ -10,7 +10,8 @@ import type {
 import {
   stepThermalModel, getComfortStatus, calculateCoolingPower,
   calculateACEnergy, calculateFanEnergy, estimateInitialIndoorTemp,
-  type ThermalParams,
+  getThermalResistance, getThermalCapacitance, getSolarHeatGain,
+  getOccupantHeatGain, type ThermalParams,
 } from './thermal-model';
 import {
   applyCharge, applyDischarge, maxChargeable, maxDischargeable,
@@ -120,6 +121,12 @@ export function runOptimization(
   model.variables[prevSocVar] = { objective: 0 };
   model.constraints[prevSocVar] = { equal: initialSoc };
 
+  // Setup initial temperature tracking for the solver
+  const initialTemp = estimateInitialIndoorTemp(intervals[0].temperature_c, profile.comfort_min_c, profile.comfort_max_c);
+  let prevTempVar = 'temp_0';
+  model.variables[prevTempVar] = { objective: 0 };
+  model.constraints[prevTempVar] = { equal: initialTemp };
+
   intervals.forEach((intv, i) => {
     const acUnitsVar = varName('acUnits', i);
     const fanUnitsVar = varName('fanUnits', i);
@@ -129,6 +136,9 @@ export function runOptimization(
     const socVar = varName('soc', i + 1);
     const comfortDevVar = varName('comfortDev', i);
     const peakDemandVar = varName('peakDemand', i);
+    const tempVar = varName('temp', i + 1);
+    const coolingPowerVar = varName('coolingPower', i);
+    const solarUsedVar = varName('solarUsed', i);
 
     // Register variables
     model.variables[acUnitsVar] = { objective: 0 };
@@ -137,15 +147,23 @@ export function runOptimization(
     model.variables[batDischargeVar] = { objective: 0 };
     model.variables[gridEnergyVar] = { objective: 0 };
     model.variables[socVar] = { objective: 0 };
-    model.variables[comfortDevVar] = { objective: weights.comfort * 10 }; // Scale comfort impact
+    model.variables[comfortDevVar] = { objective: weights.comfort * 15 }; // Scale comfort impact slightly higher to keep temp in range
     model.variables[peakDemandVar] = { objective: weights.peak * 50 }; // Scale peak impact
+    model.variables[tempVar] = { objective: 0 };
+    model.variables[coolingPowerVar] = { objective: 0 };
+    model.variables[solarUsedVar] = { objective: 0 };
 
-    // Constraints for variables
+    // Bounds and types
     model.ints[acUnitsVar] = 1;
     model.ints[fanUnitsVar] = 1;
 
     model.constraints[acUnitsVar] = { min: 0, max: totalAcUnits };
     model.constraints[fanUnitsVar] = { min: 0, max: totalFanUnits };
+    model.constraints[tempVar] = { min: 10, max: 60 };
+    model.constraints[coolingPowerVar] = { min: 0 };
+
+    const maxSolar = intv.solar_available_kw * 0.25;
+    model.constraints[solarUsedVar] = { min: 0, max: maxSolar };
 
     if (batteryCap > 0) {
       model.constraints[socVar] = { min: socMin, max: socMax };
@@ -167,10 +185,10 @@ export function runOptimization(
     }
 
     // Energy Balance Constraint: grid + solar_used + discharge = ac_energy + fan_energy + non_cooling + charge
-    // Coefficients:
     const energyBal = varName('energyBal', i);
     model.constraints[energyBal] = { equal: intv.non_cooling_load_kw * 0.25 };
     model.variables[gridEnergyVar][energyBal] = 1;
+    model.variables[solarUsedVar][energyBal] = 1;
     model.variables[batDischargeVar][energyBal] = 1;
     model.variables[batChargeVar][energyBal] = -1;
     model.variables[acUnitsVar][energyBal] = -avgRatedPowerKw * 0.25;
@@ -199,20 +217,54 @@ export function runOptimization(
       model.variables[batDischargeVar][socEq] = 1 / etaDischarge;
     }
 
-    // Comfort Dev constraints
+    // Temperature evolution: tempVar_{i+1} = alpha * tempVar_i + gamma_i - beta * coolingPowerVar_i
+    const R = getThermalResistance(profile.insulation_level);
+    const C = getThermalCapacitance(profile.area_m2, profile.insulation_level);
+    const dt = intv.interval_minutes / 60; // 0.25
+
+    const alpha = 1 - dt / (C * R);
+    const beta = dt / C;
+
+    const T_eff = 0.7 * intv.temperature_c + 0.3 * intv.heat_index_c;
+    const Q_env_fixed = T_eff / R;
+    const Q_solar = getSolarHeatGain(intv.solar_irradiance_w_m2, profile.area_m2, profile.sun_exposure);
+    const Q_occ = getOccupantHeatGain(intv.occupancy_count);
+
+    const gamma_i = beta * (Q_env_fixed + Q_solar + Q_occ);
+
+    const tempEq = varName('tempEq', i);
+    if (i === 0) {
+      model.constraints[tempEq] = { equal: gamma_i + alpha * initialTemp };
+      model.variables[tempVar][tempEq] = 1;
+      model.variables[coolingPowerVar][tempEq] = beta;
+    } else {
+      model.constraints[tempEq] = { equal: gamma_i };
+      model.variables[tempVar][tempEq] = 1;
+      model.variables[prevTempVar][tempEq] = -alpha;
+      model.variables[coolingPowerVar][tempEq] = beta;
+    }
+
+    // Cooling Power Limit: coolingPowerVar <= acUnitsVar * avgCoolingCapacityKw
+    const coolingPowerLimit = varName('coolingPowerLimit', i);
+    model.constraints[coolingPowerLimit] = { max: 0 };
+    model.variables[coolingPowerVar][coolingPowerLimit] = 1;
+    model.variables[acUnitsVar][coolingPowerLimit] = -avgCoolingCapacityKw;
+
+    // Comfort Dev constraints using the tempVar
     if (intv.occupancy_count > 0) {
       const comfortMaxLink = varName('comfortMaxLink', i);
       model.constraints[comfortMaxLink] = { max: profile.comfort_max_c };
-      model.variables[acUnitsVar][comfortMaxLink] = -0.5; // cooling approximation
+      model.variables[tempVar][comfortMaxLink] = 1;
       model.variables[comfortDevVar][comfortMaxLink] = -1;
 
       const comfortMinLink = varName('comfortMinLink', i);
       model.constraints[comfortMinLink] = { min: profile.comfort_min_c };
-      model.variables[acUnitsVar][comfortMinLink] = -0.5;
+      model.variables[tempVar][comfortMinLink] = 1;
       model.variables[comfortDevVar][comfortMinLink] = 1;
     }
 
     prevSocVar = socVar;
+    prevTempVar = tempVar;
   });
 
   const solution = Solver.Solve(model) as any;
@@ -268,15 +320,28 @@ export function runOptimization(
       acUnitsOn = Math.max(0, Math.min(totalAcUnits, acUnitsOn));
       fanUnitsOn = Math.max(0, Math.min(totalFanUnits, fanUnitsOn));
 
-      // Calculate setpoint target based on solver activity
+      // Calculate setpoint target dynamically from solved cooling power
       let acSetpoint: number | null = null;
       if (acUnitsOn > 0) {
-        acSetpoint = Math.round(
-          Math.max(
-            acAppliances[0].min_setpoint_c,
-            Math.min(acAppliances[0].max_setpoint_c, profile.comfort_max_c - 1)
-          )
-        );
+        const coolingPowerSolved = solution[varName('coolingPower', i)] || 0;
+        const maxCooling = acUnitsOn * avgCoolingCapacityKw;
+        if (maxCooling > 0) {
+          const eff = Math.max(0, Math.min(1.0, coolingPowerSolved / maxCooling));
+          const calculatedSetpoint = indoorTemp - eff * 5.0;
+          acSetpoint = Math.round(
+            Math.max(
+              acAppliances[0].min_setpoint_c,
+              Math.min(acAppliances[0].max_setpoint_c, calculatedSetpoint)
+            )
+          );
+        } else {
+          acSetpoint = Math.round(
+            Math.max(
+              acAppliances[0].min_setpoint_c,
+              Math.min(acAppliances[0].max_setpoint_c, profile.comfort_max_c - 1)
+            )
+          );
+        }
       }
 
       // Thermal calculations
@@ -299,13 +364,15 @@ export function runOptimization(
       const totalDemandKwh = coolingEnergy + nonCoolingKwh;
 
       const solarAvailableKwh = interval.solar_available_kw * (interval.interval_minutes / 60);
-      let solarUsedKwh = Math.min(solarAvailableKwh, totalDemandKwh);
+      let solarUsedKwh = 0;
 
       let gridEnergyKwh = 0;
       let chargeKwh = 0;
       let dischargeKwh = 0;
 
       if (!interval.grid_available) {
+        // Under grid outage, use solar first for demand, then charge battery with excess, or discharge battery
+        solarUsedKwh = Math.min(solarAvailableKwh, totalDemandKwh);
         const deficit = totalDemandKwh - solarUsedKwh;
         if (deficit > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
           const maxDisch = maxDischargeable(energyAssets, batterySoc, interval.interval_minutes, true);
@@ -313,9 +380,19 @@ export function runOptimization(
           const result = applyDischarge(energyAssets, batterySoc, dischargeKwh, true);
           dischargeKwh = result.actualDischarged;
           batterySoc = result.newSoc;
+        } else {
+          // Charge battery with excess solar during outage
+          const excess = solarAvailableKwh - solarUsedKwh;
+          if (excess > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
+            const maxCh = maxChargeable(energyAssets, batterySoc, interval.interval_minutes);
+            chargeKwh = Math.min(excess, maxCh);
+            const result = applyCharge(energyAssets, batterySoc, chargeKwh);
+            chargeKwh = result.actualCharged;
+            batterySoc = result.newSoc;
+          }
         }
       } else {
-        // Charge or discharge battery
+        // Grid available: use charge/discharge solver directives
         if (batCharge > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
           const maxCh = maxChargeable(energyAssets, batterySoc, interval.interval_minutes);
           chargeKwh = Math.min(batCharge, maxCh);
@@ -329,6 +406,8 @@ export function runOptimization(
           dischargeKwh = result.actualDischarged;
           batterySoc = result.newSoc;
         }
+        
+        solarUsedKwh = Math.min(solarAvailableKwh, totalDemandKwh + chargeKwh);
         gridEnergyKwh = Math.max(0, totalDemandKwh + chargeKwh - solarUsedKwh - dischargeKwh);
       }
 

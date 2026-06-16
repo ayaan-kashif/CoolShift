@@ -27,12 +27,15 @@ async function generateOutputs() {
       continue;
     }
     
-    // Use first 7 days
-    const startDate = new Date(range.min_ts);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 7);
+    // Use first 7 days (timezone-agnostic parsing to avoid local/UTC offset shifts)
     const windowStart = range.min_ts;
-    const windowEnd = endDate.toISOString().replace('Z','').replace(/\.\d{3}$/,'');
+    const [datePart, timePart] = range.min_ts.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const d = new Date(Date.UTC(year, month - 1, day));
+    d.setUTCDate(d.getUTCDate() + 7);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const nextDatePart = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    const windowEnd = `${nextDatePart}T${timePart}`;
     
     try {
       // Run baseline

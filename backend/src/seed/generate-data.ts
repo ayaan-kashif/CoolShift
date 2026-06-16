@@ -7,6 +7,8 @@
  */
 
 import { getDb } from '../db/connection';
+import * as fs from 'fs';
+import * as path from 'path';
 
 function generateData() {
   const db = getDb();
@@ -62,6 +64,22 @@ function generateData() {
       maximum_grid_demand_kw: 15,
       evaluation_focus: 'Manage large occupancy cooling; peak demand reduction; budget-aware optimization',
     },
+    {
+      scenario_id: 'custom_hospital_karachi',
+      name: 'Karachi Hospital Emergency Ward',
+      building_type: 'Clinic',
+      area_m2: 800,
+      room_count: 8,
+      max_occupancy: 250,
+      insulation_level: 'Medium',
+      sun_exposure: 'High',
+      comfort_min_c: 20,
+      comfort_max_c: 24,
+      vulnerable_occupants: 150,
+      budget_pkr_per_day: 15000,
+      maximum_grid_demand_kw: 50,
+      evaluation_focus: 'Ensure clinical cooling safety during power outages; manage high peak demand',
+    },
   ];
 
   // Insert scenarios
@@ -89,6 +107,10 @@ function generateData() {
     { appliance_id: 'PUB-C-AC1', scenario_id: 'PUB-C', zone_id: 'ZONE-1', appliance_type: 'Inverter AC', quantity: 2, rated_power_kw: 2.0, cooling_capacity_kw: 5.0, efficiency_label: 'A', min_runtime_minutes: 20, min_setpoint_c: 18, max_setpoint_c: 28 },
     { appliance_id: 'PUB-C-AC2', scenario_id: 'PUB-C', zone_id: 'ZONE-2', appliance_type: 'Inverter AC', quantity: 2, rated_power_kw: 2.0, cooling_capacity_kw: 5.0, efficiency_label: 'A', min_runtime_minutes: 20, min_setpoint_c: 18, max_setpoint_c: 28 },
     { appliance_id: 'PUB-C-FAN1', scenario_id: 'PUB-C', zone_id: 'ALL', appliance_type: 'Ceiling fan', quantity: 6, rated_power_kw: 0.075, cooling_capacity_kw: 0, efficiency_label: 'N/A', min_runtime_minutes: 0, min_setpoint_c: 16, max_setpoint_c: 30 },
+    // custom_hospital_karachi: 6 inverter ACs, 10 ceiling fans
+    { appliance_id: 'HOSP-AC1', scenario_id: 'custom_hospital_karachi', zone_id: 'ZONE-1', appliance_type: 'Inverter AC', quantity: 3, rated_power_kw: 2.5, cooling_capacity_kw: 7.0, efficiency_label: 'A+++', min_runtime_minutes: 15, min_setpoint_c: 16, max_setpoint_c: 30 },
+    { appliance_id: 'HOSP-AC2', scenario_id: 'custom_hospital_karachi', zone_id: 'ZONE-2', appliance_type: 'Inverter AC', quantity: 3, rated_power_kw: 2.5, cooling_capacity_kw: 7.0, efficiency_label: 'A+++', min_runtime_minutes: 15, min_setpoint_c: 16, max_setpoint_c: 30 },
+    { appliance_id: 'HOSP-FAN1', scenario_id: 'custom_hospital_karachi', zone_id: 'ALL', appliance_type: 'Ceiling fan', quantity: 10, rated_power_kw: 0.08, cooling_capacity_kw: 0, efficiency_label: 'N/A', min_runtime_minutes: 0, min_setpoint_c: 16, max_setpoint_c: 30 },
   ];
 
   const insertAppliance = db.prepare(`
@@ -105,6 +127,7 @@ function generateData() {
     { scenario_id: 'PUB-A', solar_capacity_kw: 0, solar_conversion_efficiency: 0, battery_capacity_kwh: 0, initial_soc_kwh: 0, minimum_reserve_kwh: 0, max_charge_kw: 0, max_discharge_kw: 0, charge_efficiency: 0.95, discharge_efficiency: 0.95 },
     { scenario_id: 'PUB-B', solar_capacity_kw: 3.0, solar_conversion_efficiency: 0.18, battery_capacity_kwh: 5.0, initial_soc_kwh: 2.5, minimum_reserve_kwh: 1.0, max_charge_kw: 1.5, max_discharge_kw: 2.0, charge_efficiency: 0.92, discharge_efficiency: 0.93 },
     { scenario_id: 'PUB-C', solar_capacity_kw: 5.0, solar_conversion_efficiency: 0.17, battery_capacity_kwh: 10.0, initial_soc_kwh: 5.0, minimum_reserve_kwh: 2.0, max_charge_kw: 3.0, max_discharge_kw: 4.0, charge_efficiency: 0.90, discharge_efficiency: 0.92 },
+    { scenario_id: 'custom_hospital_karachi', solar_capacity_kw: 8.0, solar_conversion_efficiency: 0.18, battery_capacity_kwh: 40.0, initial_soc_kwh: 20.0, minimum_reserve_kwh: 5.0, max_charge_kw: 10.0, max_discharge_kw: 15.0, charge_efficiency: 0.95, discharge_efficiency: 0.95 },
   ];
 
   const insertAsset = db.prepare(`
@@ -245,6 +268,68 @@ function generateData() {
       const scenarioAppliances = appliances.filter(a => a.scenario_id === scenario.scenario_id);
       const totalAcUnits = scenarioAppliances.filter(a => a.appliance_type !== 'Ceiling fan').reduce((s, a) => s + a.quantity, 0);
       const totalFanUnits = scenarioAppliances.filter(a => a.appliance_type === 'Ceiling fan').reduce((s, a) => s + a.quantity, 0);
+
+      if (scenario.scenario_id === 'custom_hospital_karachi') {
+        const csvPath = path.join(__dirname, '../../../data/custom_scenario/custom_data.csv');
+        if (!fs.existsSync(csvPath)) {
+          console.error(`  ❌ Custom scenario CSV not found at ${csvPath}`);
+          continue;
+        }
+        const content = fs.readFileSync(csvPath, 'utf-8');
+        const lines = content.split(/\r?\n/).filter(line => line.trim() !== '');
+        // Skip header
+        for (let k = 1; k < lines.length; k++) {
+          const parts = lines[k].split(',');
+          if (parts.length < 15) continue;
+          
+          const [
+            sid, timestamp, intervalMinutesStr, tempStr, humidityStr, heatIndexStr,
+            solarIrradianceStr, solarAvailableStr, occupancyStr, gridAvailableStr,
+            tariffType, tariffRateStr, carbonFactorStr, nonCoolingLoadStr, sourceMissingStr
+          ] = parts;
+          
+          const temp = parseFloat(tempStr);
+          const humidity = parseFloat(humidityStr);
+          const heatIndex = parseFloat(heatIndexStr);
+          const solarIrradiance = parseFloat(solarIrradianceStr);
+          const solarAvailable = parseFloat(solarAvailableStr);
+          const occupancy = parseInt(occupancyStr, 10);
+          const gridAvailable = parseInt(gridAvailableStr, 10);
+          const tariffRate = parseFloat(tariffRateStr);
+          const carbonFactor = parseFloat(carbonFactorStr);
+          const nonCoolingLoad = parseFloat(nonCoolingLoadStr);
+          
+          insertInterval.run(
+            scenario.scenario_id, timestamp, temp, humidity, heatIndex,
+            solarIrradiance, solarAvailable, occupancy, gridAvailable,
+            tariffType, tariffRate, carbonFactor, nonCoolingLoad
+          );
+          
+          let baselineAcOn = 0;
+          let baselineSetpoint: number | null = null;
+          let baselineFanOn = 0;
+          
+          if (occupancy > 0 && temp > 24) {
+            baselineAcOn = totalAcUnits;
+            baselineSetpoint = 22;
+            baselineFanOn = totalFanUnits;
+          } else if (occupancy > 0 && temp > 22) {
+            baselineAcOn = Math.ceil(totalAcUnits * 0.5);
+            baselineSetpoint = 23;
+            baselineFanOn = totalFanUnits;
+          } else if (occupancy > 0) {
+            baselineFanOn = Math.ceil(totalFanUnits * 0.5);
+          }
+          
+          insertBaselineSchedule.run(
+            scenario.scenario_id, timestamp,
+            baselineAcOn, baselineSetpoint, baselineFanOn
+          );
+          
+          totalIntervals++;
+        }
+        continue;
+      }
 
       for (let day = 0; day < days; day++) {
         const currentDate = new Date(startDate);

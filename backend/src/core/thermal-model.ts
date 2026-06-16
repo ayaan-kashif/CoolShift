@@ -138,7 +138,11 @@ export function getComfortStatus(
     return 'warning';
   }
 
-  return 'unsafe';
+  if (deviation <= 3.0) {
+    return 'unsafe';
+  }
+
+  return 'infeasible';
 }
 
 /**
