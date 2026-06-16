@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "ts-node src/seed/generate-data.ts",
+    "generate-outputs": "ts-node src/scripts/generate-outputs.ts",
     "test": "jest --config jest.config.js",
     "test:acceptance": "jest --config jest.config.js --testPathPattern=acceptance"
   },

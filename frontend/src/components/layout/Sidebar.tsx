@@ -5,11 +5,13 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api from '../../lib/api';
+import { useCoolShiftStore } from '../../lib/store';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const alertCount = useCoolShiftStore((s) => s.alertCount);
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -30,7 +32,7 @@ export default function Sidebar() {
   }, []);
 
   const links = [
-    { name: 'Dashboard', path: '/', icon: '🏠', badge: 3 },
+    { name: 'Dashboard', path: '/', icon: '🏠', badge: alertCount },
     { name: 'Import Data', path: '/import', icon: '📁' },
     { name: 'New Scenario', path: '/scenarios/new', icon: '⚙️' },
     { name: 'Run Optimizer', path: '/optimize', icon: '🚀' },

@@ -43,6 +43,7 @@ export interface OutputSchedule {
 export interface RunSummary {
   run_id: string;
   scenario_id: string;
+  scenario_name: string;
   total_intervals: number;
   total_cost_pkr: number;
   total_grid_energy_kwh: number;
@@ -51,7 +52,48 @@ export interface RunSummary {
   peak_demand_kw: number;
   comfort_compliance_pct: number;
   infeasible_count: number;
+  infeasible_intervals: number;
+  solar_utilization_pct: number;
+  battery_cycles: number;
   run_duration_seconds: number;
+  daily_summaries: DailySummary[];
+}
+
+export interface DailySummary {
+  date: string;
+  cost_pkr: number;
+  grid_energy_kwh: number;
+  solar_energy_kwh: number;
+  emissions_kgco2e: number;
+  peak_demand_kw: number;
+  comfort_compliance_pct: number;
+  avg_indoor_temp_c: number;
+}
+
+export interface ImportSummary {
+  scenarios_loaded: number;
+  appliances_loaded: number;
+  energy_assets_loaded: number;
+  intervals_loaded: number;
+  validation: {
+    rows_parsed: number;
+    rows_valid: number;
+    errors: { row: number; column: string; message: string }[];
+    warnings: { row: number; column: string; message: string }[];
+  };
+}
+
+export interface RunListItem {
+  run_id: string;
+  scenario_id: string;
+  scenario_name: string;
+  algorithm_version: string;
+  status: 'pending' | 'running' | 'complete' | 'failed';
+  interval_count: number;
+  run_duration_seconds: number;
+  created_at: string;
+  evaluation_window_start: string;
+  evaluation_window_end: string;
 }
 
 export interface ComparisonResult {

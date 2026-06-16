@@ -3,8 +3,8 @@
 CoolShift is an AI-powered thermal optimization platform designed to shave cooling costs, integrate local battery and solar energy assets, and mitigate greenhouse gas emissions under extreme summer temperatures and volatile grid tariffs.
 
 ## 👥 Team & Demo Info
-*   **Team Name:** Buildathon Competitor Team (Placeholder)
-*   **Live Demo URL:** [https://coolshift.placeholder.demo](https://coolshift.placeholder.demo) (Placeholder)
+*   **Team Name:** Team CoolShift
+*   **Local Demo URL:** [http://localhost:3000](http://localhost:3000)
 
 ---
 
@@ -49,13 +49,13 @@ CoolShift is built specifically to address:
 *   **Greedy Heuristic / LP Solver:** Leverages a Linear Programming solver (`javascript-lp-solver`) to minimize cumulative costs, grid peak draw, and thermal discomfort deviation.
 *   **Thermal RC Model:** Models building heat gains based on insulation level, sun exposure, occupancy baseload, and outdoor temperatures.
 *   **Battery SoC State-Machine:** Constrains charging and discharging limits based on reserves, max thresholds, and conversion efficiency.
-*   *For exact formulations, see* [method.md](file:///docs/method.md).
+*   *For exact formulations, see* [method.md](./docs/method.md).
 
 ---
 
 ## 🤖 AI Tools Disclosure
 
-This project was built with the assistance of **Antigravity**, Google DeepMind's agentic AI pair programming assistant, supporting frontend components implementation, Jest test suite structures, and database mock setups.
+This project was built with the assistance of **Antigravity** (Google DeepMind's agentic AI assistant) and **Claude**, supporting frontend components implementation, Jest test suite structures, and database mock setups.
 
 ---
 

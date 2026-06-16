@@ -11,6 +11,7 @@ import Badge from '../components/ui/Badge';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import AlertBanner from '../components/ui/AlertBanner';
 import { generateAlerts } from '../lib/alerts';
+import { useCoolShiftStore } from '../lib/store';
 
 interface Scenario {
   scenario_id: string;
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
   const [demoLoading, setDemoLoading] = useState(false);
+  const setAlertCount = useCoolShiftStore((s) => s.setAlertCount);
 
   const fetchData = async () => {
     try {
@@ -59,9 +61,14 @@ export default function Dashboard() {
           const scheduleRes = await api.get(`/api/v1/runs/${latestRun.run_id}/schedule?limit=96`);
           const alertsList = generateAlerts(scheduleRes.data.data, null, []);
           setActiveAlerts(alertsList.slice(0, 4));
+          setAlertCount(alertsList.length);
         } catch (err) {
           console.error('Failed to load alerts for dashboard:', err);
+          setAlertCount(0);
         }
+      } else {
+        setActiveAlerts([]);
+        setAlertCount(0);
       }
     } catch (err: any) {
       console.error(err);
