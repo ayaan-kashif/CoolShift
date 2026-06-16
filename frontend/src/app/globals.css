@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #0a0f1e;
+    color: #ffffff;
+    font-family: var(--font-inter), sans-serif;
+  }
+}
+
+/* Glassmorphism styling */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Interactive hover shadow */
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 170, 0.25);
+  border-color: rgba(0, 212, 170, 0.4);
+}
+
+/* Form element base */
+.input-field {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  transition: all 0.2s;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #00d4aa;
+  box-shadow: 0 0 10px rgba(0, 212, 170, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 15, 30, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 170, 0.4);
+}
+
+@media print {
+  body, html {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  
+  aside, 
+  .no-print,
+  button,
+  .btn,
+  .button,
+  a[href] {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  /* Keep text colors for savings/metrics where appropriate but make dark mode backgrounds light */
+  .bg-white\/5,
+  .bg-emerald-950\/10,
+  .bg-blue-950\/10,
+  .bg-teal-950\/10,
+  .bg-purple-950\/10,
+  .bg-emerald-500\/5,
+  .bg-yellow-500\/5,
+  .glass-card,
+  div[class*="bg-"],
+  div[class*="border-"] {
+    background-color: #f9fafb !important;
+    background: #f9fafb !important;
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+  }
+
+  /* Specific border overrides for prints */
+  div, table, tr, td, th {
+    border-color: #d1d5db !important;
+  }
+
+  /* Make sure text colors inside cards or text highlights are visible on white background */
+  h1, h2, h3, h4, h5, h6, p, span, td, th, tr, div {
+    color: #111827 !important;
+  }
+
+  /* Allow specific highlighting classes to keep their colors */
+  .text-\[\#00d4aa\], .text-emerald-400, .text-[#00d4aa], .text-emerald-500 {
+    color: #059669 !important; /* darker green for print visibility */
+  }
+  .text-blue-400 {
+    color: #2563eb !important; /* darker blue */
+  }
+  .text-teal-400 {
+    color: #0d9488 !important; /* darker teal */
+  }
+  .text-purple-400 {
+    color: #7c3aed !important; /* darker purple */
+  }
+  .text-red-400, .text-red-500 {
+    color: #dc2626 !important;
+  }
+  .text-yellow-400 {
+    color: #d97706 !important;
+  }
+
+  /* Force chart colors to be dark for text elements */
+  .recharts-text, 
+  .recharts-legend-item-text, 
+  .recharts-cartesian-axis-tick-value {
+    fill: #374151 !important;
+    color: #374151 !important;
+  }
+
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke: #e5e7eb !important;
+  }
+  
+  /* Prevent page breaks inside charts/cards */
+  .card, div[class*="Card"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 2rem !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}
+
