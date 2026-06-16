@@ -8,6 +8,7 @@ import importRoutes from './routes/import';
 import { baselineRouter, optimizeRouter } from './routes/engines';
 import runsRouter from './routes/runs';
 import exportRouter from './routes/export';
+import aiRouter from './routes/ai';
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/v1/baseline', baselineRouter);
 app.use('/api/v1/optimize', optimizeRouter);
 app.use('/api/v1/runs', runsRouter);
 app.use('/api/v1/export', exportRouter);
+app.use('/api/v1/ai', aiRouter);
 
 // Alias for history
 app.get('/api/v1/history', (req, res) => {

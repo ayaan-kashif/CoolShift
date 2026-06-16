@@ -20,6 +20,7 @@ import {
   Snowflake,
   ChevronLeft,
   ChevronRight,
+  BrainCircuit,
 } from 'lucide-react';
 
 export function Sidebar({ showAlert = false }: { showAlert?: boolean }) {
@@ -53,6 +54,7 @@ export function Sidebar({ showAlert = false }: { showAlert?: boolean }) {
     { name: 'New Scenario', path: '/scenarios/new', icon: PlusCircle },
     { name: 'Run Optimizer', path: '/optimize', icon: Zap },
     { name: 'Run History', path: '/runs', icon: History },
+    { name: 'AI Insights', path: '/ai', icon: BrainCircuit },
     { name: 'Custom Scenarios', path: '/custom', icon: FolderOpen },
     { name: 'SDG Impact', path: '/impact', icon: Globe },
     { name: 'What-If Simulator', path: '/whatif', icon: Sliders },

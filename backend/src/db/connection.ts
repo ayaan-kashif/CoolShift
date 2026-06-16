@@ -139,6 +139,16 @@ function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_output_schedule_scenario ON output_schedule(scenario_id);
     CREATE INDEX IF NOT EXISTS idx_optimization_runs_scenario ON optimization_runs(scenario_id);
     CREATE INDEX IF NOT EXISTS idx_baseline_schedule_scenario ON baseline_schedule(scenario_id, timestamp_local);
+
+    CREATE TABLE IF NOT EXISTS ai_model_params (
+      scenario_id TEXT PRIMARY KEY REFERENCES scenario_profiles(scenario_id) ON DELETE CASCADE,
+      coefficients TEXT NOT NULL,
+      feature_names TEXT NOT NULL,
+      r_squared REAL,
+      mae REAL,
+      trained_at TEXT,
+      sample_count INTEGER
+    );
   `);
 }
 
