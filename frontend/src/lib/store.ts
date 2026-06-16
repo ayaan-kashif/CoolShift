@@ -10,6 +10,7 @@ export interface CoolShiftStore {
   lastRunResult: OptimizationResult | null;
   globalAlert: { type: 'success' | 'error' | 'warning'; message: string } | null;
   alertCount: number;
+  sidebarCollapsed: boolean;
 
   setScenarios: (s: ScenarioProfile[]) => void;
   setSelectedScenario: (id: string) => void;
@@ -17,6 +18,7 @@ export interface CoolShiftStore {
   setLastRunResult: (r: OptimizationResult) => void;
   setGlobalAlert: (a: { type: 'success' | 'error' | 'warning'; message: string } | null) => void;
   setAlertCount: (n: number) => void;
+  setSidebarCollapsed: (b: boolean) => void;
 }
 
 export const useCoolShiftStore = create<CoolShiftStore>()(
@@ -27,6 +29,7 @@ export const useCoolShiftStore = create<CoolShiftStore>()(
     lastRunResult: null,
     globalAlert: null,
     alertCount: 0,
+    sidebarCollapsed: false,
     setScenarios: (s) => set({ scenarios: s }),
     setSelectedScenario: (id) => set({ selectedScenarioId: id }),
     setWeights: (w) =>
@@ -34,5 +37,6 @@ export const useCoolShiftStore = create<CoolShiftStore>()(
     setLastRunResult: (r) => set({ lastRunResult: r }),
     setGlobalAlert: (a) => set({ globalAlert: a }),
     setAlertCount: (n) => set({ alertCount: n }),
+    setSidebarCollapsed: (b) => set({ sidebarCollapsed: b }),
   }))
 );

@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api';
-import Card from '../components/ui/Card';
+import { GlassPanel } from '../components/ui/GlassPanel';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -304,19 +304,19 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="hover-glow transition-all duration-300">
+        <GlassPanel className="p-6 hover-glow hover:scale-[1.03] transition-all duration-300 animate-scale-in stagger-1">
           <p className="text-xs text-white/50 font-medium uppercase tracking-wider">Total Scenarios</p>
           <p className="text-3xl font-bold mt-2 text-white">{health?.database?.scenarios || 0}</p>
-        </Card>
-        <Card className="hover-glow transition-all duration-300">
+        </GlassPanel>
+        <GlassPanel className="p-6 hover-glow hover:scale-[1.03] transition-all duration-300 animate-scale-in stagger-2">
           <p className="text-xs text-white/50 font-medium uppercase tracking-wider">Total Runs</p>
           <p className="text-3xl font-bold mt-2 text-white">{health?.database?.runs || 0}</p>
-        </Card>
-        <Card className="hover-glow transition-all duration-300">
+        </GlassPanel>
+        <GlassPanel className="p-6 hover-glow hover:scale-[1.03] transition-all duration-300 animate-scale-in stagger-3">
           <p className="text-xs text-white/50 font-medium uppercase tracking-wider">Intervals Seeded</p>
           <p className="text-3xl font-bold mt-2 text-white">{health?.database?.intervals?.toLocaleString() || 0}</p>
-        </Card>
-        <Card className="hover-glow transition-all duration-300">
+        </GlassPanel>
+        <GlassPanel className="p-6 hover-glow hover:scale-[1.03] transition-all duration-300 animate-scale-in stagger-4">
           <p className="text-xs text-white/50 font-medium uppercase tracking-wider">System Status</p>
           <div className="flex items-center gap-2 mt-3">
             <span className="w-2.5 h-2.5 rounded-full bg-[#00d4aa] animate-ping" />
@@ -324,11 +324,11 @@ export default function Dashboard() {
               {health?.status === 'ok' ? 'Healthy' : 'Degraded'}
             </span>
           </div>
-        </Card>
+        </GlassPanel>
       </div>
 
       {/* Scenarios Section */}
-      <Card className="p-6">
+      <GlassPanel className="p-6 animate-scale-in stagger-5">
         <h2 className="text-xl font-bold text-white mb-6">Building & Scenario Profiles</h2>
         {scenarios.length === 0 ? (
           <div className="text-center py-12 space-y-4">
@@ -426,7 +426,7 @@ export default function Dashboard() {
             </table>
           </div>
         )}
-      </Card>
+      </GlassPanel>
     </div>
   );
 }

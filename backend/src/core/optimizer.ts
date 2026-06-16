@@ -3,6 +3,12 @@ import { getDb } from '../db/connection';
 import { v4 as uuid } from 'uuid';
 // @ts-ignore
 import Solver from 'javascript-lp-solver';
+
+// Normalization constants for slider weight scaling
+const MAX_COST = 1000; // Example max cost weight value
+const MAX_EMISSIONS = 100; // Example max emissions weight value
+const MAX_COMFORT = 1; // Comfort already in [0,1]
+const MAX_PEAK = 1; // Peak weight range
 import type {
   ScenarioProfile, Appliance, EnergyAsset, IntervalInput,
   OutputSchedule, OptimizationRun,
@@ -169,8 +175,8 @@ export function runOptimization(
       model.variables[batDischargeVar] = { objective: 0 };
       model.variables[gridEnergyVar] = { objective: 0 };
       model.variables[socVar] = { objective: 0 };
-      model.variables[comfortDevVar] = { objective: weights.comfort * 5000 }; // high penalty for comfort deviation
-      model.variables[peakDemandVar] = { objective: weights.peak * 50 };
+      model.variables[comfortDevVar] = { objective: (weights.comfort / MAX_COMFORT) * 5000 }; // high penalty for comfort deviation
+      model.variables[peakDemandVar] = { objective: (weights.peak / MAX_PEAK) * 50 };
       model.variables[tempVar] = { objective: 0 };
       model.variables[coolingPowerVar] = { objective: 0 };
       model.variables[solarUsedVar] = { objective: 0 };
@@ -253,7 +259,7 @@ export function runOptimization(
 
       // Grid Cost & Carbon Emissions added to Objective
       model.variables[gridEnergyVar]['objective'] =
-        weights.cost * intv.tariff_pkr_per_kwh + weights.emissions * intv.grid_carbon_kgco2_per_kwh;
+        (weights.cost / MAX_COST) * intv.tariff_pkr_per_kwh + (weights.emissions / MAX_EMISSIONS) * intv.grid_carbon_kgco2_per_kwh;
 
       // Peak Demand
       const peakLimitConstraint = `peakLimitConstraint_${i}`;

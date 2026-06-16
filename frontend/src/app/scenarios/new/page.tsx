@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import Card from '../../../components/ui/Card';
+import { GlassPanel } from '../../../components/ui/GlassPanel';
 import Button from '../../../components/ui/Button';
 import AlertBanner from '../../../components/ui/AlertBanner';
 
@@ -172,7 +172,7 @@ export default function NewScenarioPage() {
 
       {/* STEP 1: BUILDING PROFILE */}
       {step === 1 && (
-        <Card className="p-6 space-y-6">
+        <GlassPanel className="p-6 space-y-6">
           <h2 className="text-lg font-bold text-white">Step 1: Building & Envelope Profile</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -318,12 +318,12 @@ export default function NewScenarioPage() {
               Next Step: Appliances ▶
             </Button>
           </div>
-        </Card>
+        </GlassPanel>
       )}
 
       {/* STEP 2: COOLING APPLIANCES */}
       {step === 2 && (
-        <Card className="p-6 space-y-6">
+        <GlassPanel className="p-6 space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-white">Step 2: Cooling Appliances Config</h2>
             <Button variant="secondary" onClick={handleAddAppliance} type="button" className="text-xs">
@@ -444,12 +444,12 @@ export default function NewScenarioPage() {
               Next Step: Energy Assets ▶
             </Button>
           </div>
-        </Card>
+        </GlassPanel>
       )}
 
       {/* STEP 3: ENERGY ASSETS */}
       {step === 3 && (
-        <Card className="p-6 space-y-6">
+        <GlassPanel className="p-6 space-y-6">
           <div className="flex items-center gap-3">
             <input
               id="hasAssets"
@@ -562,7 +562,7 @@ export default function NewScenarioPage() {
               🚀 Finalize & Create Scenario
             </Button>
           </div>
-        </Card>
+        </GlassPanel>
       )}
     </div>
   );

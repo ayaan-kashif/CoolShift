@@ -5,7 +5,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
-import Card from '../../components/ui/Card';
+import { GlassPanel } from '../../components/ui/GlassPanel';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import AlertBanner from '../../components/ui/AlertBanner';
@@ -153,7 +153,7 @@ function OptimizeContent() {
       )}
 
       {running ? (
-        <Card className="p-12 flex flex-col items-center justify-center gap-6 min-h-[300px]">
+        <GlassPanel className="p-12 flex flex-col items-center justify-center gap-6 min-h-[300px]">
           <LoadingSpinner size={14} />
           <div className="text-center">
             <h2 className="text-lg font-bold text-white">
@@ -161,12 +161,12 @@ function OptimizeContent() {
             </h2>
             <p className="text-sm text-white/50 mt-1">This process can take 5-15 seconds depending on data size.</p>
           </div>
-        </Card>
+        </GlassPanel>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form Side */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6 space-y-6">
+            <GlassPanel className="p-6 space-y-6">
               <h2 className="text-lg font-bold text-white">Optimization Parameters</h2>
 
               {/* Scenario Selector */}
@@ -208,10 +208,10 @@ function OptimizeContent() {
                   />
                 </div>
               </div>
-            </Card>
+            </GlassPanel>
 
             {/* Weights Sliders */}
-            <Card className="p-6 space-y-6">
+            <GlassPanel className="p-6 space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-bold text-white">Objective Weight Tuning</h2>
                 <div className="flex items-center gap-2">
@@ -315,12 +315,12 @@ function OptimizeContent() {
                   Run Optimization
                 </Button>
               </div>
-            </Card>
+            </GlassPanel>
           </div>
 
           {/* Results Side */}
           <div className="space-y-6">
-            <Card className="p-6 h-full flex flex-col justify-between">
+            <GlassPanel className="p-6 h-full flex flex-col justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white mb-6">Optimization Results</h2>
                 {lastRunResult ? (
@@ -412,7 +412,7 @@ function OptimizeContent() {
                   </Link>
                 </div>
               )}
-            </Card>
+            </GlassPanel>
           </div>
         </div>
       )}

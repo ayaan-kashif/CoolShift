@@ -14,7 +14,7 @@ export default function Button({
   className = '',
   ...rest
 }: Props) {
-  const base = 'rounded-xl px-4 py-2 font-medium transition-colors duration-200';
+  const base = 'rounded-xl px-4 py-2 font-semibold transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] transform shadow-md';
   const colors = {
     primary: 'bg-[#00d4aa] text-black hover:bg-[#00c49e] disabled:opacity-50',
     secondary: 'bg-white/10 text-white hover:bg-white/20 disabled:opacity-50',

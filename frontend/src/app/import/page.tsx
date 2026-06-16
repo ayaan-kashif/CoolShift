@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import api from '../../lib/api';
-import Card from '../../components/ui/Card';
+import { GlassPanel } from '../../components/ui/GlassPanel';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import AlertBanner from '../../components/ui/AlertBanner';
@@ -86,7 +86,7 @@ export default function ImportPage() {
       )}
 
       {!summary && (
-        <Card className="p-6">
+        <GlassPanel className="p-6">
           <FileUpload onFileSelect={handleFileUpload} disabled={loading} />
           {loading && (
             <div className="mt-6 flex flex-col items-center gap-3">
@@ -94,12 +94,12 @@ export default function ImportPage() {
               <p className="text-xs text-white/50 animate-pulse">{uploadStatus}</p>
             </div>
           )}
-        </Card>
+        </GlassPanel>
       )}
 
       {summary && (
         <div className="space-y-6">
-          <Card className="p-6 border-[#00d4aa]/30 shadow-[0_0_15px_rgba(0,212,170,0.1)]">
+          <GlassPanel className="p-6 border-[#00d4aa]/30 shadow-[0_0_15px_rgba(0,212,170,0.1)]">
             <div className="flex items-center gap-3 mb-6">
               <span className="text-3xl">✅</span>
               <div>
@@ -141,11 +141,11 @@ export default function ImportPage() {
                 </Link>
               </div>
             </div>
-          </Card>
+          </GlassPanel>
 
           {/* Validation Diagnostics (Errors & Warnings) */}
           {(summary.validation.errors.length > 0 || summary.validation.warnings.length > 0) && (
-            <Card className="p-6">
+            <GlassPanel className="p-6">
               <h3 className="text-lg font-bold text-white mb-4">Seeding Diagnostics & Validation Warnings</h3>
 
               {/* Errors List */}
@@ -205,7 +205,7 @@ export default function ImportPage() {
                   </div>
                 </div>
               )}
-            </Card>
+            </GlassPanel>
           )}
         </div>
       )}

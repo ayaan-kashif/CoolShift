@@ -1,24 +1,37 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/app/layout.tsx
+import type { Metadata } from 'next';
+import { DM_Sans } from 'next/font/google';
 import './globals.css';
-import Sidebar from '../components/layout/Sidebar';
-import { Inter } from 'next/font/google';
+import { AppLayout } from '../components/layout/AppLayout';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+  weight: ['400', '500', '600', '700'],
+});
 
-export const metadata = {
-  title: 'CoolShift – AI Cooling Optimisation',
-  description: 'Intelligent cooling optimisation platform',
+export const metadata: Metadata = {
+  title: 'CoolShift — Intelligent Cooling Optimizer',
+  description:
+    'AI-powered HVAC optimization platform for energy savings, thermal comfort, and carbon reduction in Pakistan.',
   icons: {
     icon: '/icon.svg',
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="bg-[#0a0f1e] text-white font-sans min-h-screen flex">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    <html lang="en" className="dark">
+      <body className={`${dmSans.variable} font-sans antialiased`}>
+        {/* Ambient Background Effects */}
+        <div className="ambient-bg" />
+        <div className="dot-grid" />
+
+        {/* App Shell */}
+        <AppLayout>{children}</AppLayout>
       </body>
     </html>
   );
