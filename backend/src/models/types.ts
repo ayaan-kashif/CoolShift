@@ -20,7 +20,9 @@ export type ReasonCode =
   | 'DEMAND_LIMIT'
   | 'BUDGET_RISK'
   | 'PRE_COOL'
-  | 'NORMAL';
+  | 'NORMAL'
+  | 'GRID_OUTAGE'
+  | 'INSUFFICIENT_CAPACITY';
 
 // ─── Database Row Types ──────────────────────────────────────────────────────
 

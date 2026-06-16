@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/types/index.ts
 /**
  * Central TypeScript type definitions for the CoolShift frontend.
  * These mirror the backend interfaces verbatim so that API calls are type‑safe.

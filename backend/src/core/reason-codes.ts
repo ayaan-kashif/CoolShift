@@ -28,19 +28,26 @@ export function determineReasonCode(
   maxGridDemandKw: number,
   isPreCooling: boolean = false
 ): ReasonCodeResult {
-  // Priority 1: Grid outage
+  // Priority 1: Infeasible / Unsafe comfort
+  if (comfortStatus === 'infeasible' || comfortStatus === 'unsafe') {
+    if (!interval.grid_available) {
+      return {
+        code: 'GRID_OUTAGE',
+        explanation: `Comfort target compromised due to utility grid outage at ${interval.timestamp_local}. Battery and solar resources were insufficient.`,
+      };
+    } else {
+      return {
+        code: 'INSUFFICIENT_CAPACITY',
+        explanation: `Comfort target cannot be met due to insufficient cooling capacity or extreme weather at ${interval.timestamp_local}.`,
+      };
+    }
+  }
+
+  // Priority 2: Grid outage
   if (!interval.grid_available) {
     return {
       code: 'OUTAGE',
       explanation: `Grid power unavailable at ${interval.timestamp_local}. System running on solar/battery only.`,
-    };
-  }
-
-  // Priority 2: Infeasible comfort
-  if (comfortStatus === 'infeasible') {
-    return {
-      code: 'INFEASIBLE',
-      explanation: `Comfort target cannot be achieved with available cooling capacity at ${interval.timestamp_local}. All available resources are being utilized.`,
     };
   }
 
@@ -184,6 +191,8 @@ export function getReasonCodeColor(code: ReasonCode): string {
     BUDGET_RISK: '#ec4899',     // pink
     PRE_COOL: '#06b6d4',        // cyan
     NORMAL: '#22c55e',          // green
+    GRID_OUTAGE: '#ef4444',     // red/gray
+    INSUFFICIENT_CAPACITY: '#dc2626', // dark red
   };
   return colors[code] || '#6b7280';
 }

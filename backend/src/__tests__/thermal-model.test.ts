@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/backend/src/__tests__/thermal-model.test.ts
 import { stepThermalModel, ThermalParams, ThermalInputs, ThermalState } from '../core/thermal-model';
 
 describe('Thermal RC Model Tests', () => {

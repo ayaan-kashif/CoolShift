@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/lib/store.ts
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { ScenarioProfile, ObjectiveWeights, OptimizationResult } from '../types';

@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/lib/theme.ts
 export const themeColors = {
   accent: '#00d4aa',
   bgDark: '#0a0f1e',

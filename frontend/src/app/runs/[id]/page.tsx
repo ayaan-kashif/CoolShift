@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/app/runs/[id]/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -169,10 +168,13 @@ export default function SchedulePage() {
         return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
       case 'SOLAR_AVAILABLE':
         return 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+      case 'GRID_OUTAGE':
       case 'OUTAGE':
         return 'bg-red-500/20 text-red-300 border border-red-500/30';
       case 'PEAK_TARIFF':
         return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+      case 'INSUFFICIENT_CAPACITY':
+        return 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
       default:
         return 'bg-white/5 text-white/70 border border-white/10';
     }

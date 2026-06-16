@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/app/admin/checks/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';

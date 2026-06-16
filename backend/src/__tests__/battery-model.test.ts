@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/backend/src/__tests__/battery-model.test.ts
 import { applyCharge, applyDischarge, validateBatteryConstraints } from '../core/battery-model';
 import type { EnergyAsset } from '../models/types';
 

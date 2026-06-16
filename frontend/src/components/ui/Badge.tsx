@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/components/ui/Badge.tsx
 import React from 'react';
 
 type Color = 'primary' | 'danger' | 'warning' | 'success';

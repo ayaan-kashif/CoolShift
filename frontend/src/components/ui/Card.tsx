@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/components/ui/Card.tsx
 import React, { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 

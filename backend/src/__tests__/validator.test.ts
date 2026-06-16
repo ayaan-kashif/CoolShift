@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/backend/src/__tests__/validator.test.ts
 import { validateIntervalInputs } from '../services/validator';
 import type { IntervalInput } from '../models/types';
 

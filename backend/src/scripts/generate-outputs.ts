@@ -27,12 +27,12 @@ async function generateOutputs() {
       continue;
     }
     
-    // Use first 6 days (timezone-agnostic parsing to avoid local/UTC offset shifts)
+    // Use first 7 days (timezone-agnostic parsing to avoid local/UTC offset shifts)
     const windowStart = range.min_ts;
     const [datePart, timePart] = range.min_ts.split('T');
     const [year, month, day] = datePart.split('-').map(Number);
     const d = new Date(Date.UTC(year, month - 1, day));
-    d.setUTCDate(d.getUTCDate() + 6);
+    d.setUTCDate(d.getUTCDate() + 7);
     const pad = (n: number) => String(n).padStart(2, '0');
     const nextDatePart = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
     const windowEnd = `${nextDatePart}T${timePart}`;
@@ -45,16 +45,16 @@ async function generateOutputs() {
       // Run optimization
       console.log(`  Running optimization...`);
       const optimized = runOptimization(scenario.scenario_id, windowStart, windowEnd, {
-        cost: 0.4,
-        emissions: 0.3,
-        comfort: 0.25,
+        cost: 0.25,
+        emissions: 0.25,
+        comfort: 0.45,
         peak: 0.05
       });
       
-      // Get output schedule rows (both baseline and optimized)
+      // Get output schedule rows (optimized only)
       const scheduleRows = db.prepare(
-        'SELECT * FROM output_schedule WHERE run_id = ? OR run_id = ? ORDER BY is_baseline DESC, timestamp_local'
-      ).all(optimized.run_id, baseline.run_id) as any[];
+        'SELECT * FROM output_schedule WHERE run_id = ? ORDER BY timestamp_local'
+      ).all(optimized.run_id) as any[];
       
       allIntervalRows.push(...scheduleRows);
       
@@ -85,7 +85,7 @@ async function generateOutputs() {
       
       allSummaryRows.push(...dailyRows);
       
-      console.log(`  ✅ ${scheduleRows.length} interval rows generated`);
+      console.log(`  ✅ ${scheduleRows.length} optimized interval rows generated`);
     } catch (err: any) {
       console.error(`  ❌ Error: ${err.message}`);
     }
@@ -97,7 +97,14 @@ async function generateOutputs() {
   
   // Write public_results.csv
   if (allIntervalRows.length > 0) {
-    const cols = Object.keys(allIntervalRows[0]);
+    const cols = [
+      'scenario_id', 'run_id', 'timestamp_local', 'recommended_ac_units_on',
+      'recommended_ac_setpoint_c', 'recommended_fan_units_on', 'grid_energy_kwh',
+      'solar_energy_used_kwh', 'battery_charge_kwh', 'battery_discharge_kwh',
+      'battery_soc_kwh', 'cooling_energy_kwh', 'estimated_indoor_temp_c',
+      'comfort_status', 'interval_cost_pkr', 'interval_emissions_kgco2e',
+      'reason_code', 'explanation', 'constraint_violation_count'
+    ];
     const csvLines = [cols.join(',')];
     allIntervalRows.forEach(row => {
       csvLines.push(cols.map(c => {

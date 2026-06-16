@@ -143,9 +143,28 @@ export function runBaseline(
 
       // Get baseline schedule for this interval (or use defaults)
       const bsRow = baselineMap.get(interval.timestamp_local);
-      const acUnitsOn = bsRow ? bsRow.baseline_ac_units_on : (interval.occupancy_count > 0 ? Math.min(totalAcUnits, Math.ceil(totalAcUnits * 0.7)) : 0);
-      const acSetpoint = bsRow ? bsRow.baseline_ac_setpoint_c : (acUnitsOn > 0 ? defaultSetpoint : null);
-      const fanUnitsOn = bsRow ? bsRow.baseline_fan_units_on : (interval.occupancy_count > 0 ? totalFanUnits : 0);
+      let acUnitsOn = bsRow ? bsRow.baseline_ac_units_on : (interval.occupancy_count > 0 ? Math.min(totalAcUnits, Math.ceil(totalAcUnits * 0.7)) : 0);
+      let fanUnitsOn = bsRow ? bsRow.baseline_fan_units_on : (interval.occupancy_count > 0 ? totalFanUnits : 0);
+
+      // Enforce power constraints during grid outages in baseline
+      if (!interval.grid_available) {
+        const maxDischargeKwh = energyAssets ? maxDischargeable(energyAssets, batterySoc, interval.interval_minutes, true) : 0;
+        const solarAvailableKwh = interval.solar_available_kw * (interval.interval_minutes / 60);
+        const maxEnergyAvailable = solarAvailableKwh + maxDischargeKwh;
+        const nonCoolingKwh = interval.non_cooling_load_kw * (interval.interval_minutes / 60);
+        const maxCoolingEnergyAvailable = Math.max(0, maxEnergyAvailable - nonCoolingKwh);
+
+        const fanPowerKwhPerUnit = 0.075 * (interval.interval_minutes / 60);
+        const maxFansOn = fanPowerKwhPerUnit > 0 ? Math.floor(maxCoolingEnergyAvailable / fanPowerKwhPerUnit) : 0;
+        fanUnitsOn = Math.min(fanUnitsOn, maxFansOn);
+
+        const remainingCoolingEnergy = Math.max(0, maxCoolingEnergyAvailable - fanUnitsOn * fanPowerKwhPerUnit);
+        const acPowerKwhPerUnit = avgRatedPowerKw * (interval.interval_minutes / 60);
+        const maxAcsOn = acPowerKwhPerUnit > 0 ? Math.floor(remainingCoolingEnergy / acPowerKwhPerUnit) : 0;
+        acUnitsOn = Math.min(acUnitsOn, maxAcsOn);
+      }
+
+      const acSetpoint = acUnitsOn > 0 ? (bsRow && bsRow.baseline_ac_setpoint_c !== null && bsRow.baseline_ac_setpoint_c !== undefined ? bsRow.baseline_ac_setpoint_c : defaultSetpoint) : null;
 
       // Calculate cooling power
       const coolingPower = calculateCoolingPower(acUnitsOn, acSetpoint, indoorTemp, avgCoolingCapacityKw);
@@ -178,9 +197,9 @@ export function runBaseline(
         // No grid: use solar + battery
         const solarDeficit = totalDemandKwh - solarUsedKwh;
         if (solarDeficit > 0 && energyAssets && energyAssets.battery_capacity_kwh > 0) {
-          const maxDischarge = maxDischargeable(energyAssets, batterySoc, interval.interval_minutes);
+          const maxDischarge = maxDischargeable(energyAssets, batterySoc, interval.interval_minutes, true);
           dischargeKwh = Math.min(solarDeficit, maxDischarge);
-          const result = applyDischarge(energyAssets, batterySoc, dischargeKwh);
+          const result = applyDischarge(energyAssets, batterySoc, dischargeKwh, true);
           dischargeKwh = result.actualDischarged;
           batterySoc = result.newSoc;
         }

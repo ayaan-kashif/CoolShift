@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/backend/src/core/optimizer.ts
 import { getDb } from '../db/connection';
 import { v4 as uuid } from 'uuid';
 // @ts-ignore
@@ -175,7 +174,7 @@ export function runOptimization(
       model.variables[batDischargeVar] = { objective: 0 };
       model.variables[gridEnergyVar] = { objective: 0 };
       model.variables[socVar] = { objective: 0 };
-      model.variables[comfortDevVar] = { objective: (weights.comfort / MAX_COMFORT) * 5000 }; // high penalty for comfort deviation
+      model.variables[comfortDevVar] = { objective: (weights.comfort / MAX_COMFORT) * 25000 }; // high penalty for comfort deviation
       model.variables[peakDemandVar] = { objective: (weights.peak / MAX_PEAK) * 50 };
       model.variables[tempVar] = { objective: 0 };
       model.variables[coolingPowerVar] = { objective: 0 };
@@ -307,12 +306,12 @@ export function runOptimization(
       // Comfort Dev constraints using the tempVar
       if (intv.occupancy_count > 0) {
         const comfortMaxLink = `comfortMaxLink_${i}`;
-        model.constraints[comfortMaxLink] = { max: profile.comfort_max_c };
+        model.constraints[comfortMaxLink] = { max: profile.comfort_max_c - 0.75 };
         model.variables[tempVar][comfortMaxLink] = 1;
         model.variables[comfortDevVar][comfortMaxLink] = -1;
 
         const comfortMinLink = `comfortMinLink_${i}`;
-        model.constraints[comfortMinLink] = { min: profile.comfort_min_c };
+        model.constraints[comfortMinLink] = { min: profile.comfort_min_c + 0.75 };
         model.variables[tempVar][comfortMinLink] = 1;
         model.variables[comfortDevVar][comfortMinLink] = 1;
       }
@@ -341,7 +340,8 @@ export function runOptimization(
 
     for (let i = startIndex; i <= endIndex; i++) {
       const interval = intervals[i];
-      let acUnitsOn = Math.round(globalSolution[varName('acUnits', i)] || 0);
+      const solverAc = globalSolution[varName('acUnits', i)] || 0;
+      let acUnitsOn = solverAc > 0.15 ? Math.ceil(solverAc) : 0;
       acUnitsOn = Math.max(0, Math.min(totalAcUnits, acUnitsOn));
 
       let acSetpoint: number | null = null;
@@ -465,7 +465,8 @@ export function runOptimization(
       }
 
       // Read solver decisions
-      let acUnitsOn = Math.round(solution[varName('acUnits', i)] || 0);
+      const solverAc = solution[varName('acUnits', i)] || 0;
+      let acUnitsOn = solverAc > 0.15 ? Math.ceil(solverAc) : 0;
       let fanUnitsOn = Math.round(solution[varName('fanUnits', i)] || 0);
       let batCharge = solution[varName('batCharge', i)] || 0;
       let batDischarge = solution[varName('batDischarge', i)] || 0;

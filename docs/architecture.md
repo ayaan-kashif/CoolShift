@@ -2,6 +2,10 @@
 
 The following diagram illustrates the data flow, architecture layers, and service modules of the CoolShift Optimization Platform:
 
+![CoolShift Architecture](architecture.png)
+
+## Detailed Flow Diagram (Mermaid)
+
 ```mermaid
 graph TD
     User["User Web Browser"]

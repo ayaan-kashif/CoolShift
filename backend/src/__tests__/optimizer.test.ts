@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/backend/src/__tests__/optimizer.test.ts
 
 jest.mock('../db/connection', () => {
   const mockInsertedRows: any[] = [];

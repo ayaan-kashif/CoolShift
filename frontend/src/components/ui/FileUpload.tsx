@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/components/ui/FileUpload.tsx
 'use client';
 
 import React, { useRef, useState } from 'react';

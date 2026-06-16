@@ -23,7 +23,15 @@ import {
   BrainCircuit,
 } from 'lucide-react';
 
-export function Sidebar({ showAlert = false }: { showAlert?: boolean }) {
+export function Sidebar({
+  showAlert = false,
+  mobileOpen = false,
+  onClose,
+}: {
+  showAlert?: boolean;
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const collapsed = useCoolShiftStore((s) => s.sidebarCollapsed);
@@ -65,9 +73,11 @@ export function Sidebar({ showAlert = false }: { showAlert?: boolean }) {
 
   return (
     <aside
-      className={`fixed left-0 bg-[#0A1628] border-r border-[#1E293B] flex flex-col z-40 transition-all duration-300 ${
-        collapsed ? 'w-20' : 'w-[260px]'
-      }`}
+      className={`fixed bg-[#0A1628] border-r border-[#1E293B] flex flex-col z-40 transition-all duration-300 
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} 
+        md:translate-x-0 
+        ${collapsed ? 'md:w-20' : 'md:w-[260px]'} 
+        w-[260px]`}
       style={{
         top: showAlert ? '48px' : '0px',
         height: showAlert ? 'calc(100vh - 48px)' : '100vh',
@@ -95,7 +105,7 @@ export function Sidebar({ showAlert = false }: { showAlert?: boolean }) {
         {!collapsed && (
           <button
             onClick={() => setCollapsed(true)}
-            className="w-6 h-6 rounded flex items-center justify-center text-[#64748B] hover:text-white hover:bg-[#1E293B] transition-all"
+            className="hidden md:flex w-6 h-6 rounded items-center justify-center text-[#64748B] hover:text-white hover:bg-[#1E293B] transition-all"
             title="Collapse sidebar"
           >
             <ChevronLeft size={14} strokeWidth={2} />
@@ -104,7 +114,7 @@ export function Sidebar({ showAlert = false }: { showAlert?: boolean }) {
         {collapsed && (
           <button
             onClick={() => setCollapsed(false)}
-            className="absolute -right-3 top-6 w-6 h-6 rounded-full bg-[#1E293B] border border-[#334155] flex items-center justify-center text-[#64748B] hover:text-white hover:bg-[#1E293B] transition-all z-50 shadow-md"
+            className="hidden md:flex absolute -right-3 top-6 w-6 h-6 rounded-full bg-[#1E293B] border border-[#334155] items-center justify-center text-[#64748B] hover:text-white hover:bg-[#1E293B] transition-all z-50 shadow-md"
             title="Expand sidebar"
           >
             <ChevronRight size={14} strokeWidth={2} />
@@ -126,6 +136,7 @@ export function Sidebar({ showAlert = false }: { showAlert?: boolean }) {
               <Link
                 key={link.path}
                 href={link.path}
+                onClick={() => onClose?.()}
                 className={`flex items-center gap-3 px-3 py-[9px] rounded-lg text-[13px] font-medium transition-all duration-150 relative
                   ${
                     isActive

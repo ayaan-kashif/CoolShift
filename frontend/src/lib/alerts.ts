@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/lib/alerts.ts
 
 import { OutputSchedule, ScenarioProfile } from '../types';
 

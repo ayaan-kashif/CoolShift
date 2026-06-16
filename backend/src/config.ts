@@ -13,9 +13,9 @@ export const config = {
   defaultTimezone: 'Asia/Karachi',
   intervalMinutes: 15,
   defaultWeights: {
-    cost: 0.4,
-    emissions: 0.3,
-    comfort: 0.25,
+    cost: 0.25,
+    emissions: 0.2,
+    comfort: 0.5,
     peak: 0.05,
   },
   thermal: {

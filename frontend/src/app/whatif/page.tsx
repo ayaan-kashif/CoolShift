@@ -1,4 +1,3 @@
-// file:///C:/Users/Hp/OneDrive/Desktop%202/CoolShift/CoolShift/frontend/src/app/whatif/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -65,77 +64,34 @@ export default function WhatIfSimulator() {
     fetchScenarios();
   }, []);
 
-  const handleRunSimulation = () => {
+  const handleRunSimulation = async () => {
     if (!selectedScenarioId) {
       setError('Please select a scenario profile first.');
       return;
     }
 
     setSimulating(true);
+    setError(null);
 
-    setTimeout(() => {
-      // Simulate baseline metrics first
-      const baseCost = 25000;
-      const baseEmissions = 380;
-      const baseComfort = 96.5;
-
-      // Calculate multipliers based on sliders
-      const tariffDiff = (peakTariff - 45) * 0.008 + (offPeakTariff - 18) * 0.005;
-      const tempDiff = (peakTemp - 43) * 0.035;
-      const occDiff = (occupancy - 10) * 0.012;
-      const solarOffset = -((solarCapacity - 5) * 0.025);
-      const batteryOffset = -((batteryCapacity - 20) * 0.015);
-      const outageOffset = (outageHours - 4) * 0.02; // increases outages = grid usage down but comfort down
-
-      // Cost Calculation
-      const costMultiplier = 1 + tariffDiff + tempDiff + occDiff + solarOffset + batteryOffset - (outageHours - 4) * 0.01;
-      const simCost = baseCost * Math.max(0.5, costMultiplier);
-
-      // Emissions Calculation
-      const emissionsMultiplier = 1 + tempDiff + occDiff + solarOffset + batteryOffset + (outageHours - 4) * 0.015;
-      const simEmissions = baseEmissions * Math.max(0.4, emissionsMultiplier);
-
-      // Comfort Calculation
-      const comfortMultiplier = baseComfort - (tempDiff * 20) - (occDiff * 5) - (outageHours - 4) * 2 + (batteryCapacity - 20) * 0.1;
-      const simComfort = Math.min(100, Math.max(45, comfortMultiplier));
-
-      const costSaved = baseCost - simCost;
-      const emissionsSaved = baseEmissions - simEmissions;
-      const comfortSaved = simComfort - baseComfort;
-
-      setResults({
-        baseline: {
-          cost: baseCost,
-          emissions: baseEmissions,
-          comfort: baseComfort,
-        },
-        simulated: {
-          cost: Math.round(simCost),
-          emissions: Math.round(simEmissions),
-          comfort: parseFloat(simComfort.toFixed(1)),
-        },
-        delta: {
-          cost: Math.round(costSaved),
-          costPct: parseFloat(((costSaved / baseCost) * 100).toFixed(1)),
-          emissions: Math.round(emissionsSaved),
-          emissionsPct: parseFloat(((emissionsSaved / baseEmissions) * 100).toFixed(1)),
-          comfort: parseFloat(comfortSaved.toFixed(1)),
-        },
+    try {
+      const res = await api.post(`/api/v1/optimize/whatif/${selectedScenarioId}`, {
+        peakTariff,
+        offPeakTariff,
+        peakTemp,
+        occupancy,
+        solarCapacity,
+        batteryCapacity,
+        outageHours,
       });
 
-      // Calculate parameter sensitivities
-      const sens = [
-        { name: 'Tariff Rate', impact: Math.abs(tariffDiff * 100), color: '#3b82f6' },
-        { name: 'Peak Temp', impact: Math.abs(tempDiff * 100), color: '#ef4444' },
-        { name: 'Occupancy', impact: Math.abs(occDiff * 100), color: '#f59e0b' },
-        { name: 'Solar Cap.', impact: Math.abs(solarOffset * 100), color: '#00d4aa' },
-        { name: 'Battery Cap.', impact: Math.abs(batteryOffset * 100), color: '#a855f7' },
-        { name: 'Grid Outages', impact: Math.abs(outageOffset * 100), color: '#64748b' },
-      ].sort((a, b) => b.impact - a.impact);
-
-      setSensitivityData(sens);
+      setResults(res.data.results);
+      setSensitivityData(res.data.sensitivityData);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Failed to execute real-time What-If optimization solver.');
+    } finally {
       setSimulating(false);
-    }, 800);
+    }
   };
 
   if (loading) {

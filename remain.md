@@ -7,8 +7,8 @@ This document maps out the remaining features, optimizations, integrations, test
 ## 1. Advanced Math & Optimization Enhancements
 - [x] **Linear Programming (LP) Solver Integration**: 
   - Upgrade the greedy heuristic in `optimizer.ts` to a mathematically optimal solver using `javascript-lp-solver`. This will guarantee mathematical global minima for cost, emissions, and peak shaving, compared to current greedy heuristics.
-- [ ] **Predictive Machine Learning Thermal Model**:
-  - Replace the simplified mathematical RC model with a light predictive ML model (e.g., LightGBM or regression-based neural network model run via TensorFlow.js or a small python sub-service) to predict indoor temperature curves based on historical data.
+- [x] **Predictive Machine Learning Thermal Model**:
+  - Replace the simplified mathematical RC model with a light predictive ML model (implemented via multivariate OLS linear regression in pure TypeScript in `ml-temperature-model.ts`) to predict indoor temperature curves based on historical data.
 
 ---
 
@@ -39,7 +39,7 @@ This document maps out the remaining features, optimizations, integrations, test
 ## 4. Production Deployment & IoT
 - [ ] **IoT Thermostat / Smart-Plug Integration**:
   - Implement an MQTT client listener or simulated REST dispatcher to broadcast calculated optimal setpoints and AC/Fan schedules to physical hardware devices (like Tuya or ESP32-based smart plugs).
-- [ ] **Offline / Progressive Web App (PWA) Support**:
+- [x] **Offline / Progressive Web App (PWA) Support**:
   - Set up service workers and web manifest file to allow the React client to run offline, caching loaded scenarios and schedules.
 - [x] **Production Docker Configuration**:
   - Finalize the SQLite volume mounting system inside `docker-compose.yml` to prevent data loss on container rebuilds.
