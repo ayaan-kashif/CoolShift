@@ -174,29 +174,24 @@ export default function PitchDeckPage() {
   const current = slides[activeSlide];
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto h-[80vh] flex flex-col justify-between">
-      {/* Top Header */}
-      <div className="flex justify-between items-center border-b border-white/10 pb-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-            📈 Built-in Pitch Presentation
-          </h1>
-          <p className="text-white/60 text-sm mt-1">
-            Dogfooding: presenting CoolShift values and architectural metrics inside the application itself.
-          </p>
-        </div>
+    <div className="space-y-6 max-w-4xl mx-auto flex flex-col" style={{ minHeight: 'calc(100vh - 160px)' }}>
+      {/* Slide Counter + Subtitle — replaces the colliding h1 */}
+      <div className="flex justify-between items-center">
+        <p className="text-white/50 text-sm">
+          Dogfooding: CoolShift values &amp; architectural metrics — inside the app itself.
+        </p>
         <div className="text-xs font-mono text-white/50 bg-white/5 px-3 py-1 rounded-full border border-white/10">
           Slide {activeSlide + 1} of {slides.length}
         </div>
       </div>
 
       {/* Slide Content Card */}
-      <Card className="flex-1 flex flex-col justify-center p-8 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl my-6 min-h-[350px]">
+      <Card className="flex-1 flex flex-col justify-center p-8 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl min-h-[350px]">
         <div className="space-y-6">
           <div className="flex items-center gap-4 border-b border-white/5 pb-4">
             <span className="text-4xl">{current.icon}</span>
             <div>
-              <h2 className="text-2xl font-extrabold text-white">{current.title}</h2>
+              <h1 className="text-2xl font-extrabold text-white">{current.title}</h1>
               {current.subtitle && <p className="text-xs text-[#00d4aa] font-semibold mt-0.5">{current.subtitle}</p>}
             </div>
           </div>
