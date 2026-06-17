@@ -363,13 +363,13 @@ function OptimizeContent() {
                       <div>
                         <span className="text-xs text-white/50 block">Peak demand</span>
                         <span className="text-lg font-bold text-white">
-                          {lastRunResult.peak_demand_kw.toFixed(1)} kW
+                          {(lastRunResult.peak_demand_kw ?? 0).toFixed(1)} kW
                         </span>
                       </div>
                       <div>
                         <span className="text-xs text-white/50 block">Comfort compliance</span>
                         <span className="text-lg font-bold text-white">
-                          {lastRunResult.comfort_compliance_pct.toFixed(1)}%
+                          {(lastRunResult.comfort_compliance_pct ?? 0).toFixed(1)}%
                         </span>
                       </div>
                     </div>
@@ -386,7 +386,7 @@ function OptimizeContent() {
                     </div>
 
                     <div className="border-t border-white/10 pt-4 text-xs text-white/40">
-                      Duration: {lastRunResult.run_duration_seconds.toFixed(2)} seconds | Intervals:{' '}
+                      Duration: {(lastRunResult.run_duration_seconds ?? 0).toFixed(2)} seconds | Intervals:{' '}
                       {lastRunResult.total_intervals}
                     </div>
                   </div>

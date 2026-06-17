@@ -63,4 +63,33 @@ router.post('/csv', upload.single('file'), (req: Request, res: Response) => {
   }
 });
 
+// POST /api/v1/import - Fallback that automatically handles CSV/XLSX based on file extension
+router.post('/', upload.single('file'), (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const scenarioId = req.body.scenario_id || req.query.scenario_id;
+    
+    let result;
+    if (ext === '.csv') {
+      result = importCSV(req.file.path, scenarioId as string);
+    } else if (['.xlsx', '.xls'].includes(ext)) {
+      result = importXLSX(req.file.path);
+    } else {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Unsupported file format. Please upload a CSV or XLSX file.' });
+    }
+    
+    fs.unlinkSync(req.file.path);
+    res.json(result);
+  } catch (err: any) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

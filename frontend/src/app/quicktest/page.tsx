@@ -70,8 +70,11 @@ export default function QuickJudgeTest() {
     const formData = new FormData();
     formData.append('file', fileToUpload);
 
+    const ext = fileToUpload.name.split('.').pop()?.toLowerCase();
+    const importEndpoint = ext === 'csv' ? '/api/v1/import/csv' : '/api/v1/import/xlsx';
+
     try {
-      const importRes = await api.post('/api/v1/import', formData, {
+      const importRes = await api.post(importEndpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 

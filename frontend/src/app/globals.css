@@ -84,6 +84,101 @@
   padding: 0;
 }
 
+/* ===== Global Input Base Reset ===== */
+/* Ensures ALL inputs/textareas/selects match the dark theme by default */
+input,
+textarea,
+select {
+  background-color: var(--cs-surface-container-lowest) !important;
+  color: var(--cs-on-surface) !important;
+  border: 1px solid var(--cs-outline-variant);
+  border-radius: var(--cs-radius-md);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  /* Force browser native widgets (datetime-local calendar icon, etc.) to dark mode */
+  color-scheme: dark;
+}
+
+/* ===== Autofill Styling Override ===== */
+/* Prevents browsers from styling autofilled inputs with a white/yellow background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  border: 1px solid var(--cs-outline-variant) !important;
+  -webkit-text-fill-color: var(--cs-on-surface) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--cs-surface-container-lowest) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ===== Global Placeholder — Maximum Visibility ===== */
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  color: #a0aab4 !important; /* bright enough to read on any dark bg */
+  opacity: 1 !important;
+}
+
+/* Webkit extra selector for broader compatibility */
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+  color: #a0aab4 !important;
+  opacity: 1 !important;
+}
+input::-moz-placeholder,
+textarea::-moz-placeholder {
+  color: #a0aab4 !important;
+  opacity: 1 !important;
+}
+
+/* ===== .input-field — Shared Tailwind-compatible class ===== */
+/* Used across optimize, quicktest, scenarios/new, runs, whatif, admin pages */
+.input-field {
+  display: block;
+  width: 100%;
+  background-color: var(--cs-surface-container-lowest);
+  color: var(--cs-on-surface);
+  border: 1px solid var(--cs-outline-variant);
+  border-radius: var(--cs-radius-md);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color-scheme: dark; /* makes datetime-local picker icons dark-friendly */
+}
+
+.input-field:focus {
+  border-color: var(--cs-primary);
+  box-shadow: 0 0 0 2px rgba(154, 203, 255, 0.15);
+}
+
+.input-field::placeholder {
+  color: #a0aab4 !important;
+  opacity: 1 !important;
+}
+
+/* Textarea-specific reset to prevent white background */
+textarea.input-field {
+  resize: vertical;
+}
+
+/* Select-specific: add dropdown arrow */
+select.input-field {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23a0aab4' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 5.646a.5.5 0 0 1 .708 0L8 8.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -441,7 +536,8 @@ body {
 }
 
 .cs-input::placeholder {
-  color: var(--cs-outline);
+  color: var(--cs-on-surface-variant); /* was --cs-outline (#8b919b); now #c0c7d1 for clear visibility */
+  opacity: 1;
 }
 
 .cs-select {

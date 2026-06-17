@@ -25,7 +25,9 @@ export const importApi = {
   upload: (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post('/api/v1/import', form, {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const endpoint = ext === 'csv' ? '/api/v1/import/csv' : '/api/v1/import/xlsx';
+    return api.post(endpoint, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
     });

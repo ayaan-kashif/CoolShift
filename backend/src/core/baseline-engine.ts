@@ -116,10 +116,12 @@ export function runBaseline(
   let batterySoc = energyAssets?.initial_soc_kwh || 0;
   let totalCost = 0;
   let totalGridEnergy = 0;
+  let totalSolarEnergy = 0;
   let totalEmissions = 0;
   let peakDemandKw = 0;
   let comfortWithinCount = 0;
   let occupiedCount = 0;
+  let infeasibleCount = 0;
   let dailyCost = 0;
   let currentDay = '';
 
@@ -228,6 +230,7 @@ export function runBaseline(
 
       totalCost += intervalCost;
       totalGridEnergy += gridEnergyKwh;
+      totalSolarEnergy += solarUsedKwh;
       totalEmissions += intervalEmissions;
       dailyCost += intervalCost;
 
@@ -236,6 +239,7 @@ export function runBaseline(
       if (interval.occupancy_count > 0) {
         occupiedCount++;
         if (comfortStatus === 'within_range') comfortWithinCount++;
+        else infeasibleCount++;
       }
 
       // Reason code
@@ -281,8 +285,11 @@ export function runBaseline(
     total_intervals: intervals.length,
     total_cost_pkr: Math.round(totalCost * 100) / 100,
     total_grid_energy_kwh: Math.round(totalGridEnergy * 100) / 100,
+    total_solar_energy_kwh: Math.round(totalSolarEnergy * 100) / 100,
     total_emissions_kgco2e: Math.round(totalEmissions * 100) / 100,
     peak_demand_kw: Math.round(peakDemandKw * 100) / 100,
     comfort_compliance_pct: occupiedCount > 0 ? Math.round(comfortWithinCount / occupiedCount * 10000) / 100 : 100,
+    infeasible_count: infeasibleCount,
+    run_duration_seconds: Math.round(duration * 100) / 100,
   };
 }

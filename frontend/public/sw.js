@@ -50,7 +50,12 @@ self.addEventListener('fetch', (event) => {
         });
         return response;
       }).catch(() => {
-        // Handle offline request fallback
+        // Return a valid offline fallback response instead of undefined
+        return new Response('Offline - resource not available', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain' },
+        });
       });
     })
   );
