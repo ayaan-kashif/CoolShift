@@ -29,6 +29,9 @@ export interface BaselineResult {
   total_emissions_kgco2e: number;
   peak_demand_kw: number;
   comfort_compliance_pct: number;
+  total_solar_energy_kwh?: number;
+  infeasible_count?: number;
+  run_duration_seconds?: number;
 }
 
 /**
